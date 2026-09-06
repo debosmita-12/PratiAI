@@ -92,7 +92,7 @@ def generate_block_windows(sections):
                     'section_id': sec,
                     'date': current_date.strftime('%Y-%m-%d'),
                     'window_start': w_start.strftime('%Y-%m-%d %H:%M:%S'),
-                    'window_end': (w_start + timedelta(minutes=duration)).strftime('%Y-%m-%d %H:%M:%S'),
+                    'window_end': (w_start + timedelta(minutes=int(duration))).strftime('%Y-%m-%d %H:%M:%S'),
                     'max_duration_min': duration,
                     'power_block_allowed': True,
                     'track_block_allowed': True,
@@ -124,7 +124,7 @@ def generate_train_movements(sections):
                 'section_id': sec,
                 'service_date': current_date.strftime('%Y-%m-%d'),
                 'scheduled_entry': entry_time.strftime('%Y-%m-%d %H:%M:%S'),
-                'scheduled_exit': (entry_time + timedelta(minutes=duration)).strftime('%Y-%m-%d %H:%M:%S'),
+                'scheduled_exit': (entry_time + timedelta(minutes=int(duration))).strftime('%Y-%m-%d %H:%M:%S'),
                 'train_type': t_type,
                 'priority_class': priority
             })
