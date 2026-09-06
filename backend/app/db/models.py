@@ -108,3 +108,41 @@ class User(Base):
     hashed_password = Column(String)
     full_name = Column(String)
     role = Column(String, default="viewer") # admin, planner, viewer
+
+class Prediction(Base):
+    __tablename__ = "predictions"
+    id = Column(String, primary_key=True)
+    asset_id = Column(String, ForeignKey("assets.id"))
+    prediction_timestamp = Column(DateTime)
+    risk_probability = Column(Float)
+    confidence_tier = Column(String)
+    model_version = Column(String)
+    feature_version = Column(String)
+
+class OptimizationRun(Base):
+    __tablename__ = "optimization_runs"
+    id = Column(String, primary_key=True)
+    run_timestamp = Column(DateTime)
+    solver_version = Column(String)
+    objective_profile = Column(String)
+    status = Column(String)
+    total_blocks_used = Column(Integer)
+    critical_tasks_completed = Column(Integer)
+
+class DatasetRegistry(Base):
+    __tablename__ = "dataset_registry"
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    source_url = Column(String)
+    license = Column(String)
+    acquired_at = Column(DateTime)
+    sha256 = Column(String)
+    status = Column(String)
+
+class DataQualityEvent(Base):
+    __tablename__ = "data_quality_events"
+    id = Column(String, primary_key=True)
+    timestamp = Column(DateTime)
+    record_id = Column(String)
+    issue_type = Column(String)
+    severity = Column(String)

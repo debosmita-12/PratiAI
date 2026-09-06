@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime, timedelta
 
 def load_data(data_dir):
     assets = pd.read_csv(f"{data_dir}/assets.csv")
@@ -8,15 +9,26 @@ def load_data(data_dir):
     return assets, tasks
 
 def build_features(assets, tasks):
-    # Join assets with tasks to create a predictive dataset
-    # We want to predict if a task is HIGH priority or high risk
+    # Merge for ML dataset
     df = pd.merge(assets, tasks, on=['asset_id', 'department', 'section_id'], how='inner')
     
-    # Target: 1 if priority_class is P1 or P2, else 0
-    df['target_high_priority'] = df['priority_class'].apply(lambda x: 1 if x in ['P1', 'P2'] else 0)
+    # NEW TARGET: Instead of predicting priority class, predict future failure risk
+    # Simulate a future failure label (1 if failed in next 30 days, else 0)
+    # Since we are using synthetic data for the prototype, we create a causal synthetic label based on condition & overdue
+    np.random.seed(42)
+    risk_factor = (1 - df['condition_score']) * 1.5 + (df['overdue_days'].fillna(0) / 30)
+    # Add random noise to simulate real-world uncertainty
+    noise = np.random.normal(0, 0.2, len(df))
+    df['target_failure_next_30d'] = ((risk_factor + noise) > 1.0).astype(int)
     
-    # Features
-    df['age_days'] = (pd.to_datetime('today') - pd.to_datetime(df['installation_date'])).dt.days
+    # Temporal feature: simulate observation timestamp
+    # We assign random timestamps over the last 2 years, sorted to allow temporal splitting
+    base_time = datetime(2024, 1, 1)
+    df['observation_timestamp'] = [base_time + timedelta(days=np.random.randint(0, 730)) for _ in range(len(df))]
+    df = df.sort_values('observation_timestamp').reset_index(drop=True)
+    
+    # Features (historical only)
+    df['age_days'] = (pd.to_datetime(df['observation_timestamp']) - pd.to_datetime(df['installation_date'])).dt.days
     df['is_safety_critical'] = df['safety_flag'].astype(int)
     
     # Categorical encodings
@@ -37,11 +49,10 @@ def build_features(assets, tasks):
         'overdue_days'
     ]
     
-    # Fill missing overdue days with 0
     df['overdue_days'] = df['overdue_days'].fillna(0)
     
-    X = df[features]
-    y = df['target_high_priority']
+    X = df[features + ['observation_timestamp', 'asset_id']]
+    y = df['target_failure_next_30d']
     
     return X, y, df
 
@@ -54,4 +65,4 @@ if __name__ == "__main__":
     X.to_csv(f"{out_dir}/X_features.csv", index=False)
     y.to_csv(f"{out_dir}/y_target.csv", index=False)
     full_df.to_csv(f"{out_dir}/full_features.csv", index=False)
-    print("Features built successfully.")
+    print("Features built successfully with Temporal Sort and Future-Event Target.")
