@@ -61,5 +61,5 @@ def train_and_evaluate(X, y, model_dir):
     joblib.dump(sample_explanation, f"{model_dir}/sample_explanation.joblib")
 
 if __name__ == "__main__":
-    X, y = load_data("../data/processed")
-    train_and_evaluate(X, y, "../ml/models")
+    X, y = load_data("data/processed")
+    train_and_evaluate(X, y, "ml/models")

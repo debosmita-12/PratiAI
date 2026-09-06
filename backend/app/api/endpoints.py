@@ -5,8 +5,8 @@ import os
 
 router = APIRouter()
 
-DATA_DIR = "../data/synthetic"
-PROC_DIR = "../data/processed"
+DATA_DIR = "data/synthetic"
+PROC_DIR = "data/processed"
 
 @router.get("/assets")
 def get_assets():

@@ -81,10 +81,10 @@ def run_optimization(tasks_file, blocks_file, output_file):
         print("STATUS = INFEASIBLE")
         
 if __name__ == "__main__":
-    out_dir = "../data/processed"
+    out_dir = "data/processed"
     os.makedirs(out_dir, exist_ok=True)
     run_optimization(
-        "../data/synthetic/maintenance_tasks.csv",
-        "../data/synthetic/block_windows.csv",
+        "data/synthetic/maintenance_tasks.csv",
+        "data/synthetic/block_windows.csv",
         f"{out_dir}/optimized_plan.csv"
     )

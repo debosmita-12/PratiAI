@@ -131,7 +131,7 @@ def generate_train_movements(sections):
     return pd.DataFrame(trains)
 
 if __name__ == "__main__":
-    out_dir = "../data/synthetic"
+    out_dir = "data/synthetic"
     ensure_dir(out_dir)
     
     stations, sections = generate_stations_and_sections()

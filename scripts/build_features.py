@@ -46,9 +46,9 @@ def build_features(assets, tasks):
     return X, y, df
 
 if __name__ == "__main__":
-    out_dir = "../data/processed"
+    out_dir = "data/processed"
     os.makedirs(out_dir, exist_ok=True)
-    assets, tasks = load_data("../data/synthetic")
+    assets, tasks = load_data("data/synthetic")
     X, y, full_df = build_features(assets, tasks)
     
     X.to_csv(f"{out_dir}/X_features.csv", index=False)
