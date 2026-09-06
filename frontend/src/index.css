@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', Arial, sans-serif;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+/* Login page */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.login-card h2 {
+  margin: 0 0 28px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.login-card label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  outline: none;
+}
+
+.login-card input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 9px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-card button:hover {
+  background: #1d4ed8;
+}
+
+.login-card .switch-button {
+  margin-top: 18px;
+  background: transparent;
+  color: #2563eb;
+  font-size: 13px;
+}
+
+.login-card .switch-button:hover {
+  background: #eff6ff;
+}
+
+.error-message {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+/* Dashboard */
+.dashboard-page {
+  min-height: 100vh;
+  padding: 40px;
+}
+
+.dashboard-container {
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+.dashboard-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.dashboard-subtitle {
+  margin: 10px 0 28px;
+  color: #64748b;
+}
+
+.prototype-box {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.dashboard-card {
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  transition: 0.2s ease;
+}
+
+.dashboard-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.dashboard-card h2 {
+  margin: 12px 0;
+  font-size: 36px;
+  color: #2563eb;
+}
+
+.about-card {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 14px;
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 700px) {
+  .dashboard-page {
+    padding: 20px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-title {
+    font-size: 25px;
+  }
+}
