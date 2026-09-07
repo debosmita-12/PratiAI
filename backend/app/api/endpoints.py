@@ -443,7 +443,7 @@ def load_real_demands_and_blocks(root: str, horizon_mode: str = "weekly"):
     return pd.DataFrame(demand), blocks_df, density_map
 
 @router.post("/plans/generate")
-def generate_plan(req: PlanGenerateRequest, db: Session = Depends(get_db)):
+def generate_plan(req: PlanGenerateRequest = PlanGenerateRequest(), db: Session = Depends(get_db)):
     from ortools.sat.python import cp_model
     root = get_project_root()
     out_csv = os.path.join(root, "data", "processed", "optimized_plan.csv")
