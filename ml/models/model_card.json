@@ -1,0 +1,11 @@
+{
+  "version": "v1.1.0",
+  "primary_target": "failure_next_30d",
+  "split_method": "Temporal",
+  "metrics": {
+    "pr_auc": 0.9666666666666667,
+    "recall": 0.8,
+    "precision": 1.0,
+    "brier_score": 0.04624006271088172
+  }
+}

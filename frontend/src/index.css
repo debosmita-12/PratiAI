@@ -6,190 +6,105 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', Arial, sans-serif;
-  background: #f1f5f9;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f8fafc;
   color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
-/* Login page */
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 28px !important;
 }
 
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  padding: 32px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
-.login-card h1 {
-  margin: 0 0 8px;
-  text-align: center;
-  font-size: 28px;
-  font-weight: 800;
-  color: #0f172a;
+/* Modern Light Slim Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.login-card h2 {
-  margin: 0 0 28px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
-.login-card label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
-.login-card input {
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 9px;
-  background: #f8fafc;
-  outline: none;
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-.login-card input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px #dbeafe;
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
 }
 
-.login-card button {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 9px;
-  background: #2563eb;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
+.pulse-dot {
+  animation: pulseGlow 2s infinite ease-in-out;
 }
 
-.login-card button:hover {
-  background: #1d4ed8;
+/* Smooth Table Row Transitions */
+tbody tr {
+  transition: background-color 0.15s ease;
 }
 
-.login-card .switch-button {
-  margin-top: 18px;
-  background: transparent;
-  color: #2563eb;
-  font-size: 13px;
+tbody tr:hover {
+  background-color: rgba(14, 165, 233, 0.05) !important;
 }
 
-.login-card .switch-button:hover {
-  background: #eff6ff;
+/* Card Hover Elevation */
+.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.error-message {
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 13px;
-}
-
-/* Dashboard */
-.dashboard-page {
-  min-height: 100vh;
-  padding: 40px;
-}
-
-.dashboard-container {
-  max-width: 1150px;
-  margin: 0 auto;
-}
-
-.dashboard-title {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 800;
-}
-
-.dashboard-subtitle {
-  margin: 10px 0 28px;
-  color: #64748b;
-}
-
-.prototype-box {
-  margin-bottom: 24px;
-  padding: 16px;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.dashboard-card {
-  padding: 24px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: white;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-}
-
-.dashboard-card:hover {
+.card-hover:hover {
   transform: translateY(-2px);
-  transition: 0.2s ease;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
 }
 
-.dashboard-card p {
-  margin: 0;
-  color: #64748b;
-  font-size: 14px;
+/* Leaflet tile customizer */
+.leaflet-container {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f8fafc !important;
 }
 
-.dashboard-card h2 {
-  margin: 12px 0;
-  font-size: 36px;
-  color: #2563eb;
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
 }
 
-.about-card {
-  margin-top: 24px;
-  padding: 24px;
-  border-radius: 14px;
-  background: white;
-  border: 1px solid #e2e8f0;
-}
-
-@media (max-width: 700px) {
-  .dashboard-page {
-    padding: 20px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-title {
-    font-size: 25px;
-  }
+.leaflet-popup-tip {
+  background: #ffffff !important;
 }

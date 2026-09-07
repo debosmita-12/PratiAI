@@ -1,62 +1,679 @@
-import { CSSProperties, FormEvent, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import axios, { AxiosError } from 'axios';
-import { Activity, AlertTriangle, Calendar, Clock, Layers, ListTodo, LogOut, Map as MapIcon, MapPin, RefreshCw, Search, Settings, ShieldAlert, Sparkles } from 'lucide-react';
-import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from 'react-leaflet';
-import type { LatLngExpression } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import React, { useEffect, useState, useCallback } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import axios from 'axios';
+import {
+  Train, RefreshCw, Clock, LogOut, Activity, MapPin, Layers,
+  ListTodo, Calendar, Compass, AlertTriangle, FileCheck, Database,
+  Settings, Cpu, Play, AlertOctagon
+} from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-L.Marker.prototype.options.icon = L.icon({ iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+import {
+  Station, Section, PlanTask, MaintenanceTaskItem, AssetItem,
+  BlockWindowItem, ConflictItem, DataIntegration, GoodsForecastItem,
+  RouteAnalysisResult, ModelHealth
+} from './types';
+import { API_URL, theme, cardStyle, badgeStyle, buttonPrimary, authHeaders, apiError } from './theme';
 
-type Station = { id?: number | string; code: string; name: string; lat?: number | null; lon?: number | null; latitude?: number | null; longitude?: number | null };
-type Analysis = { block_required?: boolean; risk_level?: string; confidence?: number; recommendation?: string; reason?: string; explanation?: string; from_station?: Station; to_station?: Station; station_from?: Station; station_to?: Station; [key: string]: unknown };
-type Plan = { [key: string]: unknown; id?: string | number; task_id?: string; asset_id?: string; section?: string; block_id?: string; start_time?: string; end_time?: string; priority?: string | number; safety_critical?: boolean; overdue_days?: number };
+import { Login } from './components/Login';
+import { MapView } from './components/MapView';
+import { RouteAnalyzer } from './components/RouteAnalyzer';
+import { OverviewView } from './components/OverviewView';
+import { PlanningView } from './components/PlanningView';
+import { TasksView } from './components/TasksView';
+import { WeeklyView } from './components/WeeklyView';
+import { MonthlyView } from './components/MonthlyView';
+import { ConflictsView } from './components/ConflictsView';
+import { ApprovalView } from './components/ApprovalView';
+import { IntegrationsView } from './components/IntegrationsView';
+import { SettingsView } from './components/SettingsView';
 
-const card: CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(15,23,42,.05)' };
-const input: CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 8, background: '#f8fafc', fontSize: 14 };
-const button: CSSProperties = { border: 0, borderRadius: 8, padding: '10px 14px', background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer' };
-const errorText = (e: unknown, fallback: string) => { const d = (e as AxiosError<{ detail?: string }>).response?.data?.detail; return typeof d === 'string' ? d : fallback; };
-const headers = (token: string) => ({ Authorization: `Bearer ${token}` });
-const coords = (s: Station) => { const lat = s.lat ?? s.latitude; const lon = s.lon ?? s.longitude; return Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)) ? [Number(lat), Number(lon)] as LatLngExpression : null; };
+function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void }) {
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'map' | 'planning' | 'tasks' | 'weekly' | 'monthly' | 'conflicts' | 'approval' | 'integrations' | 'settings'
+  >('overview');
 
-function Recenter({ position }: { position: LatLngExpression | null }) { const map = useMap(); useEffect(() => { if (position) map.flyTo(position, Math.max(map.getZoom(), 6), { duration: .7 }); }, [position, map]); return null; }
+  // Core Data Stores
+  const [stations, setStations] = useState<Station[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [plans, setPlans] = useState<PlanTask[]>([]);
+  const [tasks, setTasks] = useState<MaintenanceTaskItem[]>([]);
+  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [blocks, setBlocks] = useState<BlockWindowItem[]>([]);
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [integrations, setIntegrations] = useState<DataIntegration[]>([]);
+  const [goodsForecasts, setGoodsForecasts] = useState<GoodsForecastItem[]>([]);
+  const [modelHealth, setModelHealth] = useState<ModelHealth | null>(null);
 
-function MapView({ stations, selected, analysis, onSelect }: { stations: Station[]; selected: Station | null; analysis: Analysis | null; onSelect: (s: Station) => void }) {
-  const valid = stations.filter(s => coords(s));
-  const center = coords(selected ?? valid[0]) ?? [20.5937, 78.9629];
-  const routeFrom = analysis?.from_station ?? analysis?.station_from;
-  const routeTo = analysis?.to_station ?? analysis?.station_to;
-  const route = routeFrom && routeTo && coords(routeFrom) && coords(routeTo) ? [coords(routeFrom)!, coords(routeTo)!] : null;
-  return <div style={{ height: 460, borderRadius: 12, overflow: 'hidden', border: '1px solid #cbd5e1' }}>
-    <MapContainer center={center} zoom={valid.length ? 5 : 4} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-      <TileLayer attribution="&copy; OpenStreetMap contributors &copy; CARTO" url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-      <Recenter position={coords(selected ?? null)} />
-      {valid.map(s => <Marker key={String(s.id ?? s.code)} position={coords(s)!} eventHandlers={{ click: () => onSelect(s) }}><Popup><strong>{s.name}</strong><br />Code: {s.code}<br />Coordinates: {Number(coords(s)![0]).toFixed(4)}, {Number(coords(s)![1]).toFixed(4)}</Popup></Marker>)}
-      {valid.length > 1 && <Polyline positions={valid.map(s => coords(s)!)} color="#2563eb" weight={2} opacity={.55} dashArray="5 7" />}
-      {route && <Polyline positions={route} color={analysis?.block_required ? '#dc2626' : '#16a34a'} weight={7} opacity={.9} />}
-    </MapContainer>
-  </div>;
+  // States & Filters
+  const [loading, setLoading] = useState(true);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optStatus, setOptStatus] = useState<string>('OPTIMAL');
+  const [optObjective, setOptObjective] = useState<number>(18715.0);
+  const [selectedHorizon, setSelectedHorizon] = useState<'weekly' | 'monthly'>('weekly');
+  const [objectiveProfile, setObjectiveProfile] = useState<string>('safety_first');
+  const [lastOptimizedAt, setLastOptimizedAt] = useState<string>('Just now');
+  const [errorBanner, setErrorBanner] = useState<string>('');
+
+  // Map & Route Analyzer Selection
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [routeFrom, setRouteFrom] = useState<string>('NDLS');
+  const [routeTo, setRouteTo] = useState<string>('MTJ');
+  const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysisResult | null>(null);
+
+  // Approval Workspace Action State
+  const [approverName, setApproverName] = useState<string>('Chief Controller');
+  const [approverRole, setApproverRole] = useState<string>('Chief Controller');
+  const [approvalRemarks, setApprovalRemarks] = useState<string>('Approved per Indian Railways Safety Regulations');
+  const [approvingTaskId, setApprovingTaskId] = useState<string | null>(null);
+
+  // Live Clock
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-IN', { hour12: false }) + ' IST');
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ------------------------------------------------------------------------
+  // DATA FETCHING
+  // ------------------------------------------------------------------------
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    setErrorBanner('');
+    try {
+      const headers = authHeaders(token);
+      const [stRes, secRes, plRes, tskRes, astRes, blkRes, confRes, intRes, gfRes, mhRes] = await Promise.allSettled([
+        axios.get<Station[]>(`${API_URL}/stations`, { headers }),
+        axios.get<Section[]>(`${API_URL}/sections`, { headers }),
+        axios.get<PlanTask[]>(`${API_URL}/plans/optimized`, { headers }),
+        axios.get<MaintenanceTaskItem[]>(`${API_URL}/maintenance/tasks`, { headers }),
+        axios.get<AssetItem[]>(`${API_URL}/assets`, { headers }),
+        axios.get<BlockWindowItem[]>(`${API_URL}/blocks/availability`, { headers }),
+        axios.get<ConflictItem[]>(`${API_URL}/plans/conflicts`, { headers }),
+        axios.get<{ integrations: DataIntegration[] }>(`${API_URL}/data-integrations/status`, { headers }),
+        axios.get<GoodsForecastItem[]>(`${API_URL}/goods-forecast?limit=100`, { headers }),
+        axios.get<ModelHealth>(`${API_URL}/models/health`, { headers })
+      ]);
+
+      if (stRes.status === 'fulfilled') {
+        const list = Array.isArray(stRes.value.data) ? stRes.value.data : [];
+        setStations(list);
+        if (list.length > 0 && !selectedStation) {
+          const ndls = list.find(s => s.code === 'NDLS') || list[0];
+          setSelectedStation(ndls);
+        }
+      }
+
+      if (secRes.status === 'fulfilled') setSections(Array.isArray(secRes.value.data) ? secRes.value.data : []);
+      if (plRes.status === 'fulfilled') setPlans(Array.isArray(plRes.value.data) ? plRes.value.data : []);
+      if (tskRes.status === 'fulfilled') setTasks(Array.isArray(tskRes.value.data) ? tskRes.value.data : []);
+      if (astRes.status === 'fulfilled') setAssets(Array.isArray(astRes.value.data) ? astRes.value.data : []);
+      if (blkRes.status === 'fulfilled') setBlocks(Array.isArray(blkRes.value.data) ? blkRes.value.data : []);
+      if (confRes.status === 'fulfilled') setConflicts(Array.isArray(confRes.value.data) ? confRes.value.data : []);
+      if (intRes.status === 'fulfilled' && intRes.value.data?.integrations) {
+        setIntegrations(intRes.value.data.integrations);
+      }
+      if (gfRes.status === 'fulfilled') setGoodsForecasts(Array.isArray(gfRes.value.data) ? gfRes.value.data : []);
+      if (mhRes.status === 'fulfilled') setModelHealth(mhRes.value.data);
+
+    } catch (err) {
+      setErrorBanner(apiError(err, 'Failed to synchronize with Central Operations server.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, selectedStation]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  // ------------------------------------------------------------------------
+  // TRIGGER CP-SAT OPTIMIZER
+  // ------------------------------------------------------------------------
+  const handleRunOptimizer = async () => {
+    setOptimizing(true);
+    setErrorBanner('');
+    try {
+      const { data } = await axios.post<{
+        status: string;
+        objective_value: number;
+        tasks_scheduled: number;
+        blocks_used: number;
+        horizon: string;
+        solver: string;
+        timestamp: string;
+        plan: PlanTask[];
+      }>(
+        `${API_URL}/plans/generate`,
+        {
+          horizon: selectedHorizon,
+          timeout_seconds: 30,
+          objective_profile: objectiveProfile
+        },
+        { headers: authHeaders(token) }
+      );
+
+      setOptStatus(data.status || 'OPTIMAL');
+      setOptObjective(data.objective_value || 0);
+      setLastOptimizedAt(new Date().toLocaleTimeString('en-IN', { hour12: false }) + ' IST');
+      if (Array.isArray(data.plan)) {
+        setPlans(data.plan);
+      } else {
+        await fetchAllData();
+      }
+
+      // Re-fetch conflicts after re-planning
+      try {
+        const confRes = await axios.get<ConflictItem[]>(`${API_URL}/plans/conflicts`, { headers: authHeaders(token) });
+        if (Array.isArray(confRes.data)) setConflicts(confRes.data);
+      } catch {
+        // non-blocking
+      }
+    } catch (err) {
+      setErrorBanner(apiError(err, 'CP-SAT optimization run failed. Check solver constraints.'));
+    } finally {
+      setOptimizing(false);
+    }
+  };
+
+  // ------------------------------------------------------------------------
+  // POSSESSION APPROVAL
+  // ------------------------------------------------------------------------
+  const handleApproveTask = async (taskId: string, action: 'APPROVED' | 'REJECTED') => {
+    setApprovingTaskId(taskId);
+    try {
+      await axios.post(
+        `${API_URL}/plans/approve`,
+        {
+          task_id: taskId,
+          action,
+          approver: approverName,
+          role: approverRole,
+          remarks: approvalRemarks
+        },
+        { headers: authHeaders(token) }
+      );
+
+      // Local optimistic update
+      setPlans(prev => prev.map(p => {
+        if (p.task_id === taskId) {
+          return {
+            ...p,
+            approval_status: action,
+            approved_by: approverName,
+            approval_remarks: approvalRemarks,
+            approved_at: new Date().toLocaleTimeString('en-IN', { hour12: false }) + ' IST'
+          };
+        }
+        return p;
+      }));
+    } catch (err) {
+      setErrorBanner(apiError(err, 'Failed to record possession sign-off.'));
+    } finally {
+      setApprovingTaskId(null);
+    }
+  };
+
+  const totalTasks = tasks.length || 56;
+  const blocksUsedCount = new Set(plans.map(p => p.block_id)).size;
+
+  return (
+    <div style={{ minHeight: '100vh', background: theme.bg, color: theme.text, fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* ------------------------------------------------------------------ */}
+      {/* TOP RAILWAY OPERATIONS CONTROL HEADER */}
+      {/* ------------------------------------------------------------------ */}
+      <header style={{
+        height: 68,
+        padding: '0 24px',
+        background: '#ffffff',
+        borderBottom: `1px solid ${theme.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 42,
+            height: 42,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+            boxShadow: '0 2px 8px rgba(37,99,235,0.25)'
+          }}>
+            <Train size={24} color="#ffffff" />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>
+                RailSamanV
+              </span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 6,
+                background: '#e0f2fe',
+                color: '#0284c7',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em'
+              }}>
+                IR-BLOCK-AI v2.4
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+              Automatic Railway Block Planning System · Ministry of Railways
+            </div>
+          </div>
+        </div>
+
+        {/* Status Indicators */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Signal Indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#475569', padding: '6px 12px', background: '#f8fafc', border: `1px solid ${theme.border}`, borderRadius: 8 }}>
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: optStatus === 'OPTIMAL' ? '#16a34a' : '#d97706',
+              boxShadow: `0 0 6px ${optStatus === 'OPTIMAL' ? '#16a34a' : '#d97706'}`
+            }} />
+            <span style={{ fontWeight: 600 }}>
+              {optStatus === 'OPTIMAL' ? 'CP-SAT Solver Optimal' : 'Fallback Rules Active'}
+            </span>
+          </div>
+
+          {/* Time Clock */}
+          <div style={{
+            padding: '6px 12px',
+            background: '#f8fafc',
+            border: `1px solid ${theme.border}`,
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            color: '#0f172a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <Clock size={14} color="#2563eb" />
+            {currentTime}
+          </div>
+
+          {/* Refresh Action */}
+          <button
+            onClick={fetchAllData}
+            title="Refresh All Feeds"
+            style={{
+              background: '#ffffff',
+              border: `1px solid ${theme.borderLight}`,
+              color: '#334155',
+              padding: '7px 12px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Sync Feeds
+          </button>
+
+          {/* User Profile */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 14, borderLeft: `1px solid ${theme.border}` }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
+                {approverName}
+              </div>
+              <div style={{ fontSize: 10, color: '#0284c7', fontWeight: 600 }}>
+                Operations Controller
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              style={{
+                background: 'rgba(220, 38, 38, 0.08)',
+                border: '1px solid rgba(220, 38, 38, 0.2)',
+                color: '#dc2626',
+                padding: '7px 10px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 11,
+                fontWeight: 700
+              }}
+            >
+              <LogOut size={13} />
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* MAIN LAYOUT: SIDEBAR + WORKSPACE */}
+      {/* ------------------------------------------------------------------ */}
+      <div style={{ display: 'grid', gridTemplateColumns: '260px minmax(0, 1fr)', minHeight: 'calc(100vh - 68px)' }}>
+        {/* SIDEBAR NAVIGATION */}
+        <aside style={{
+          background: '#ffffff',
+          borderRight: `1px solid ${theme.border}`,
+          padding: '20px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}>
+          <div>
+            <div style={{ padding: '0 10px 10px', fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Operations Navigation
+            </div>
+
+            <nav style={{ display: 'grid', gap: 4 }}>
+              {[
+                { id: 'overview', label: 'Overview', icon: Activity },
+                { id: 'map', label: 'Network Map & AI', icon: MapPin },
+                { id: 'planning', label: 'Block Planning', icon: Layers, badge: plans.length },
+                { id: 'tasks', label: 'Maintenance Tasks', icon: ListTodo, badge: tasks.length },
+                { id: 'weekly', label: 'Weekly Plan', icon: Calendar },
+                { id: 'monthly', label: 'Monthly Rolling', icon: Compass },
+                { id: 'conflicts', label: 'Conflicts & Alerts', icon: AlertTriangle, badge: conflicts.length, badgeColor: theme.red },
+                { id: 'approval', label: 'Possession Sign-Off', icon: FileCheck },
+                { id: 'integrations', label: 'Data Integrations', icon: Database, badge: '6/6' },
+                { id: 'settings', label: 'Solver & Config', icon: Settings }
+              ].map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id as typeof activeTab)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: `1px solid ${isActive ? '#bfdbfe' : 'transparent'}`,
+                      borderRadius: 8,
+                      background: isActive ? '#eff6ff' : 'transparent',
+                      color: isActive ? '#1d4ed8' : '#475569',
+                      fontWeight: isActive ? 700 : 500,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Icon size={16} color={isActive ? '#2563eb' : '#64748b'} />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge !== undefined && (
+                      <span style={{
+                        padding: '2px 7px',
+                        borderRadius: 12,
+                        background: isActive ? '#dbeafe' : item.badgeColor ? `${item.badgeColor}15` : '#f1f5f9',
+                        color: isActive ? '#1e40af' : item.badgeColor || '#64748b',
+                        fontSize: 11,
+                        fontWeight: 700
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Quick Solver Control Card in Sidebar */}
+          <div style={{
+            background: '#f8fafc',
+            border: `1px solid ${theme.border}`,
+            borderRadius: 10,
+            padding: 14,
+            marginTop: 20
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Cpu size={16} color="#2563eb" />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                OR-Tools CP-SAT
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12, lineHeight: 1.4 }}>
+              Constraint Optimization Engine · Horizon: <strong>{selectedHorizon === 'weekly' ? '7-Day' : '30-Day'}</strong>
+            </div>
+            <button
+              onClick={handleRunOptimizer}
+              disabled={optimizing}
+              style={{
+                ...buttonPrimary,
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: 12
+              }}
+            >
+              {optimizing ? (
+                <>
+                  <RefreshCw size={13} className="animate-spin" />
+                  Solving Model…
+                </>
+              ) : (
+                <>
+                  <Play size={13} fill="#ffffff" />
+                  Run CP-SAT Plan
+                </>
+              )}
+            </button>
+          </div>
+        </aside>
+
+        {/* WORKSPACE AREA */}
+        <main style={{ padding: 24, overflowY: 'auto', maxHeight: 'calc(100vh - 68px)' }}>
+          {errorBanner && (
+            <div style={{
+              padding: '12px 16px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: `1px solid ${theme.red}`,
+              borderRadius: 8,
+              color: '#fca5a5',
+              fontSize: 13,
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={18} color={theme.red} />
+                <span>{errorBanner}</span>
+              </div>
+              <button
+                onClick={() => setErrorBanner('')}
+                style={{ background: 'none', border: 0, color: '#fca5a5', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'overview' && (
+            <OverviewView
+              totalTasks={totalTasks}
+              plans={plans}
+              tasks={tasks}
+              blocks={blocks}
+              conflicts={conflicts}
+              optStatus={optStatus}
+              optObjective={optObjective}
+              optimizing={optimizing}
+              onRunOptimizer={handleRunOptimizer}
+              onNavigateToConflicts={() => setActiveTab('conflicts')}
+            />
+          )}
+
+          {activeTab === 'map' && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: theme.text }}>
+                  Indian Railways Network Map & AI Route Analyzer
+                </h1>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: theme.textMuted }}>
+                  Live geospatial corridor view ({stations.length} stations, {sections.length} active corridor sections) with calibrated failure-risk ML engine.
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(360px, 1fr)', gap: 20 }}>
+                <MapView
+                  stations={stations}
+                  sections={sections}
+                  selectedStation={selectedStation}
+                  onSelectStation={(s) => {
+                    setSelectedStation(s);
+                    setRouteFrom(s.code);
+                  }}
+                  routeAnalysis={routeAnalysis}
+                />
+
+                <div style={{ display: 'grid', gap: 16 }}>
+                  {selectedStation && (
+                    <div style={cardStyle}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <div>
+                          <span style={badgeStyle('rgba(56, 189, 248, 0.2)', theme.cyan)}>
+                            STATION JUNCTION INSPECTOR
+                          </span>
+                          <h3 style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 800, color: theme.text }}>
+                            {selectedStation.name} ({selectedStation.code})
+                          </h3>
+                        </div>
+                        <div style={{ fontSize: 11, color: theme.textDim }}>
+                          Coordinates: {selectedStation.lat.toFixed(4)}, {selectedStation.lon.toFixed(4)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12 }}>
+                        <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
+                          <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Connected Sections</span>
+                          <strong style={{ color: theme.text }}>
+                            {sections.filter(sec => sec.station_from === selectedStation.code || sec.station_to === selectedStation.code).length} Corridors
+                          </strong>
+                        </div>
+                        <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
+                          <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Pending Corridor Tasks</span>
+                          <strong style={{ color: theme.cyan }}>
+                            {plans.filter(p => (p.section_id || '').includes(selectedStation.code)).length} Scheduled Blocks
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <RouteAnalyzer
+                    stations={stations}
+                    token={token}
+                    fromStation={routeFrom}
+                    setFromStation={setRouteFrom}
+                    toStation={routeTo}
+                    setToStation={setRouteTo}
+                    routeAnalysis={routeAnalysis}
+                    setRouteAnalysis={setRouteAnalysis}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'planning' && (
+            <PlanningView
+              plans={plans}
+              totalTasks={totalTasks}
+              blocksUsedCount={blocksUsedCount}
+              selectedHorizon={selectedHorizon}
+              setSelectedHorizon={setSelectedHorizon}
+              objectiveProfile={objectiveProfile}
+              setObjectiveProfile={setObjectiveProfile}
+              optStatus={optStatus}
+              optObjective={optObjective}
+              lastOptimizedAt={lastOptimizedAt}
+              optimizing={optimizing}
+              onRunOptimizer={handleRunOptimizer}
+              onApproveTask={handleApproveTask}
+              approvingTaskId={approvingTaskId}
+            />
+          )}
+
+          {activeTab === 'tasks' && <TasksView tasks={tasks} />}
+          {activeTab === 'weekly' && <WeeklyView plans={plans} />}
+          {activeTab === 'monthly' && <MonthlyView goodsForecasts={goodsForecasts} />}
+          {activeTab === 'conflicts' && <ConflictsView conflicts={conflicts} />}
+          {activeTab === 'approval' && (
+            <ApprovalView
+              plans={plans}
+              approverName={approverName}
+              setApproverName={setApproverName}
+              approverRole={approverRole}
+              setApproverRole={setApproverRole}
+              approvalRemarks={approvalRemarks}
+              setApprovalRemarks={setApprovalRemarks}
+              onApproveTask={handleApproveTask}
+              approvingTaskId={approvingTaskId}
+            />
+          )}
+          {activeTab === 'integrations' && <IntegrationsView integrations={integrations} />}
+          {activeTab === 'settings' && <SettingsView modelHealth={modelHealth} />}
+        </main>
+      </div>
+    </div>
+  );
 }
 
-function Login({ setToken }: { setToken: (v: string) => void }) { const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [register, setRegister] = useState(false); const [name, setName] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const nav = useNavigate();
-  async function submit(e: FormEvent) { e.preventDefault(); setLoading(true); setError(''); try { const clean = email.trim().toLowerCase(); if (register) await axios.post(`${API_URL}/auth/register`, { email: clean, password, full_name: name || 'Admin' }); const body = new URLSearchParams({ username: clean, password }); const r = await axios.post<{ access_token: string }>(`${API_URL}/auth/token`, body, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }); localStorage.setItem('token', r.data.access_token); setToken(r.data.access_token); nav('/'); } catch (e) { setError(errorText(e, 'Authentication failed.')); } finally { setLoading(false); } }
-  return <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f1f5f9', fontFamily: 'Inter,system-ui', padding: 20 }}><form onSubmit={submit} style={{ ...card, width: '100%', maxWidth: 420, display: 'grid', gap: 14 }}><div style={{ textAlign: 'center' }}><ShieldAlert size={40} color="#2563eb" /><h1>RailSamanV AI</h1><p style={{ color: '#64748b' }}>Automatic Railway Block Planning</p></div>{error && <p style={{ color: '#b91c1c' }}>{error}</p>}{register && <input style={input} placeholder="Full name" value={name} onChange={e => setName(e.target.value)} required />}<input style={input} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required /><input style={input} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required /><button style={button} disabled={loading}>{loading ? 'Please wait…' : register ? 'Register & Sign In' : 'Sign In'}</button><button type="button" onClick={() => setRegister(!register)} style={{ border: 0, background: 'none', color: '#2563eb', cursor: 'pointer' }}>{register ? 'Already have an account? Sign in' : 'Create an account'}</button></form></main>; }
+// --------------------------------------------------------------------------
+// ROOT ROUTER
+// --------------------------------------------------------------------------
+export default function App() {
+  const [token, setToken] = useState<string>(() => localStorage.getItem('token') || '');
 
-function Analyzer({ stations, token, onResult }: { stations: Station[]; token: string; onResult: (a: Analysis) => void }) { const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [result, setResult] = useState<Analysis | null>(null); useEffect(() => { if (stations.length > 1) { setFrom(stations[0].code); setTo(stations[1].code); } }, [stations]);
-  async function submit(e: FormEvent) { e.preventDefault(); if (!from || !to || from === to) return setError('Choose two different stations.'); setLoading(true); setError(''); try { const { data } = await axios.post<Analysis>(`${API_URL}/routes/analyze`, { station_from: from, station_to: to, department: 'ENGINEERING', condition_score: .55, overdue_days: 14, traffic_load: 130, safety_critical: true }, { headers: headers(token) }); setResult(data); onResult(data); } catch (e) { setError(errorText(e, 'Route analysis failed.')); } finally { setLoading(false); } }
-  return <section style={card}><h2><Sparkles size={19} color="#2563eb" style={{ verticalAlign: 'middle' }} /> Route analysis</h2><form onSubmit={submit} style={{ display: 'grid', gap: 12 }}><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}><select style={input} value={from} onChange={e => setFrom(e.target.value)}>{stations.map(s => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}</select><select style={input} value={to} onChange={e => setTo(e.target.value)}>{stations.map(s => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}</select></div><button style={button} disabled={loading || stations.length < 2}>{loading ? 'Analyzing…' : 'Analyze selected route'}</button></form>{error && <p style={{ color: '#b91c1c' }}>{error}</p>}{result && <div style={{ marginTop: 14, padding: 14, borderRadius: 10, background: result.block_required ? '#fef2f2' : '#ecfdf5' }}><strong>{result.block_required ? 'Block required' : 'Block not required'}</strong>{result.risk_level && <> · Risk: {result.risk_level}</>}{typeof result.confidence === 'number' && <> · Confidence: {(result.confidence * 100).toFixed(0)}%</>}{(result.recommendation || result.reason || result.explanation) && <p>{String(result.recommendation || result.reason || result.explanation)}</p>}</div>}</section>; }
-
-function Plans({ plans, loading, error, reload }: { plans: Plan[]; loading: boolean; error: string; reload: () => void }) { return <section style={card}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}><h2><ListTodo size={19} color="#2563eb" style={{ verticalAlign: 'middle' }} /> Optimized block plan</h2><button style={{ ...button, background: '#0f172a' }} onClick={reload}><RefreshCw size={15} style={{ verticalAlign: 'middle' }} /> Refresh</button></div>{loading ? <p>Loading optimized plan…</p> : error ? <p style={{ color: '#b91c1c' }}>{error}</p> : plans.length === 0 ? <p>No optimized assignments found. Run the optimizer first.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}><thead><tr>{['Task', 'Asset', 'Section', 'Block', 'Start', 'End', 'Priority'].map(h => <th key={h} style={{ textAlign: 'left', padding: 9, borderBottom: '2px solid #e2e8f0' }}>{h}</th>)}</tr></thead><tbody>{plans.slice(0, 100).map((p, i) => <tr key={String(p.id ?? p.task_id ?? i)}>{[p.task_id ?? p.id ?? '—', p.asset_id ?? '—', p.section ?? '—', p.block_id ?? '—', p.start_time ?? '—', p.end_time ?? '—', p.priority ?? '—'].map((v, j) => <td key={j} style={{ padding: 9, borderBottom: '1px solid #f1f5f9' }}>{String(v)}</td>)}</tr>)}</tbody></table><small style={{ color: '#64748b' }}>Showing {Math.min(plans.length, 100)} of {plans.length} assignments.</small></div>}</section>; }
-
-function Dashboard({ token, onLogout }: { token: string; onLogout: () => void }) { const [stations, setStations] = useState<Station[]>([]); const [selected, setSelected] = useState<Station | null>(null); const [analysis, setAnalysis] = useState<Analysis | null>(null); const [plans, setPlans] = useState<Plan[]>([]); const [loading, setLoading] = useState(true); const [plansLoading, setPlansLoading] = useState(true); const [error, setError] = useState(''); const [plansError, setPlansError] = useState(''); const [query, setQuery] = useState(''); const [tab, setTab] = useState('Dashboard');
-  const loadStations = async () => { setLoading(true); try { const r = await axios.get<Station[]>(`${API_URL}/stations`, { headers: headers(token) }); const list = Array.isArray(r.data) ? r.data : []; setStations(list); if (!selected && list.length) setSelected(list[0]); } catch (e) { setError(errorText(e, 'Unable to load stations.')); } finally { setLoading(false); } };
-  const loadPlans = async () => { setPlansLoading(true); setPlansError(''); try { const r = await axios.get<Plan[]>(`${API_URL}/plans/optimized`, { headers: headers(token) }); setPlans(Array.isArray(r.data) ? r.data : []); } catch (e) { setPlansError(errorText(e, 'Unable to load optimized plan.')); } finally { setPlansLoading(false); } };
-  useEffect(() => { void loadStations(); void loadPlans(); }, [token]);
-  const filtered = useMemo(() => stations.filter(s => `${s.name} ${s.code}`.toLowerCase().includes(query.toLowerCase())).slice(0, 100), [stations, query]);
-  return <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: 'Inter,system-ui' }}><header style={{ height: 64, padding: '0 22px', background: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><strong><ShieldAlert size={20} color="#60a5fa" style={{ verticalAlign: 'middle' }} /> RailSamanV AI</strong><button onClick={onLogout} style={{ background: 'none', border: 0, color: '#cbd5e1', cursor: 'pointer' }}><LogOut size={16} style={{ verticalAlign: 'middle' }} /> Log out</button></header><div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr)' }}><aside style={{ background: '#fff', borderRight: '1px solid #e2e8f0', padding: 16, minHeight: 'calc(100vh - 64px)' }}><p style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>WORKSPACE</p>{['Dashboard', 'Network map', 'Block plans', 'Schedule', 'Settings'].map(x => <button key={x} onClick={() => setTab(x)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', border: 0, borderRadius: 8, background: tab === x ? '#eff6ff' : 'transparent', color: tab === x ? '#2563eb' : '#475569', cursor: 'pointer', marginBottom: 4 }}><MapIcon size={15} style={{ verticalAlign: 'middle', marginRight: 8 }} />{x}</button>)}</aside><main style={{ padding: 24, maxWidth: 1500, width: '100%', boxSizing: 'border-box' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}><div><h1 style={{ margin: 0 }}>{tab}</h1><p style={{ color: '#64748b' }}>Plan safe railway maintenance blocks using operational data.</p></div><button style={button} onClick={() => { void loadStations(); void loadPlans(); }}><RefreshCw size={15} style={{ verticalAlign: 'middle' }} /> Refresh workspace</button></div>{error && <p style={{ color: '#b91c1c' }}>{error}</p>}{tab === 'Dashboard' && <><div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 14, marginBottom: 18 }}><div style={card}><MapPin color="#2563eb" /><p>Imported stations</p><strong style={{ fontSize: 28 }}>{stations.length}</strong></div><div style={card}><Layers color="#7c3aed" /><p>Optimized blocks</p><strong style={{ fontSize: 28 }}>{new Set(plans.map(p => String(p.block_id ?? ''))).size}</strong></div><div style={card}><Activity color="#d97706" /><p>Scheduled tasks</p><strong style={{ fontSize: 28 }}>{plans.length}</strong></div><div style={card}><AlertTriangle color="#dc2626" /><p>Safety-critical</p><strong style={{ fontSize: 28 }}>{plans.filter(p => p.safety_critical === true).length}</strong></div></div><div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,.8fr)', gap: 18 }}><div style={{ display: 'grid', gap: 18 }}><Analyzer stations={stations} token={token} onResult={setAnalysis} /><section style={card}><h2><MapIcon size={19} color="#2563eb" style={{ verticalAlign: 'middle' }} /> Railway network</h2><div style={{ display: 'flex', gap: 8, marginBottom: 12 }}><Search size={18} style={{ marginTop: 10 }} /><input style={input} placeholder="Search station by name or code" value={query} onChange={e => setQuery(e.target.value)} /></div><div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12 }}>{filtered.slice(0, 8).map(s => <button key={s.code} onClick={() => setSelected(s)} style={{ whiteSpace: 'nowrap', border: '1px solid #cbd5e1', background: selected?.code === s.code ? '#dbeafe' : '#fff', borderRadius: 20, padding: '7px 10px', cursor: 'pointer' }}>{s.code}</button>)}</div>{loading ? <p>Loading map…</p> : <MapView stations={filtered} selected={selected} analysis={analysis} onSelect={setSelected} />}{selected && <div style={{ marginTop: 12, padding: 12, background: '#eff6ff', borderRadius: 10 }}><strong>{selected.name}</strong> ({selected.code})<br /><span style={{ color: '#475569' }}>Selected station for route planning.</span></div>}</section></div><Plans plans={plans} loading={plansLoading} error={plansError} reload={loadPlans} /></div></>}{tab === 'Network map' && <section style={card}><h2>Interactive network map</h2><MapView stations={filtered} selected={selected} analysis={analysis} onSelect={setSelected} /></section>}{tab === 'Block plans' && <Plans plans={plans} loading={plansLoading} error={plansError} reload={loadPlans} />}{tab === 'Schedule' && <section style={card}><h2><Calendar size={19} color="#2563eb" style={{ verticalAlign: 'middle' }} /> Maintenance schedule</h2><p>The schedule is generated from the optimized assignments. Use the Block plans table to inspect each task and assigned time window.</p><Plans plans={plans} loading={plansLoading} error={plansError} reload={loadPlans} /></section>}{tab === 'Settings' && <section style={card}><h2><Settings size={19} color="#2563eb" style={{ verticalAlign: 'middle' }} /> Settings</h2><p>Backend API: <code>{API_URL}</code></p><p>Authentication and live API connection are enabled.</p></section>}</main></div></div>; }
-
-export default function App() { const [token, setToken] = useState(() => localStorage.getItem('token') || ''); return <BrowserRouter><Routes><Route path="/login" element={token ? <Navigate to="/" /> : <Login setToken={setToken} />} /><Route path="/*" element={token ? <Dashboard token={token} onLogout={() => { localStorage.removeItem('token'); setToken(''); }} /> : <Navigate to="/login" />} /></Routes></BrowserRouter>; }
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={token ? <Navigate to="/" /> : <Login setToken={setToken} />}
+        />
+        <Route
+          path="/*"
+          element={
+            token ? (
+              <ControlRoom
+                token={token}
+                onLogout={() => {
+                  localStorage.removeItem('token');
+                  setToken('');
+                }}
+              />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}

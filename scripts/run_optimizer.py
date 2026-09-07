@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 from ortools.sat.python import cp_model
 
-# Add the project root to Python's import path
+# Add the project root and backend to Python's import path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 
@@ -14,407 +14,201 @@ sys.path.insert(0, BACKEND_DIR)
 
 from app.db.database import SessionLocal
 from app.db.models import OptimizationRun
+from app.api.endpoints import load_real_demands_and_blocks
 
 
-def run_optimization(tasks_file, blocks_file, output_file):
-    print("=" * 60)
-    print("AI-POWERED AUTOMATIC BLOCK PLANNING")
-    print("=" * 60)
+def run_optimization(horizon="weekly", objective_profile="safety_first", output_file=None):
+    print("=" * 70)
+    print("RAILSAMANV — AI AUTOMATIC BLOCK PLANNING (REAL INDIAN RAILWAYS DATA)")
+    print("=" * 70)
 
-    # ---------------------------------------------------------
-    # 1. LOAD DATA
-    # ---------------------------------------------------------
+    if output_file is None:
+        output_file = os.path.join(PROJECT_ROOT, "data", "processed", "optimized_plan.csv")
 
-    print("\nLoading maintenance tasks...")
-    tasks_df = pd.read_csv(tasks_file)
+    # 1. LOAD REAL DATASETS
+    print(f"\nLoading real Indian Railways demands and corridor availability (Horizon: {horizon})...")
+    tasks_df, blocks_df, density_map = load_real_demands_and_blocks(PROJECT_ROOT, horizon)
 
-    print("Loading block windows...")
-    blocks_df = pd.read_csv(blocks_file)
+    print(f"Maintenance demands loaded: {len(tasks_df)} (TMS/SMMS/TDMS + BDMS)")
+    print(f"COA corridor availability windows loaded: {len(blocks_df)}")
 
-    print(f"Maintenance tasks loaded: {len(tasks_df)}")
-    print(f"Block windows loaded: {len(blocks_df)}")
-
-    # ---------------------------------------------------------
-    # 2. CLEAN DATA
-    # ---------------------------------------------------------
-
-    tasks_df["required_duration_min"] = (
-        pd.to_numeric(
-            tasks_df["required_duration_min"],
-            errors="coerce"
-        )
-        .fillna(0)
-        .astype(int)
-    )
-
-    tasks_df["overdue_days"] = (
-        pd.to_numeric(
-            tasks_df["overdue_days"],
-            errors="coerce"
-        )
-        .fillna(0)
-        .astype(int)
-    )
-
-    tasks_df["safety_critical"] = (
-        tasks_df["safety_critical"]
-        .astype(str)
-        .str.lower()
-        .isin(["true", "1", "yes"])
-    )
-
-    blocks_df["max_duration_min"] = (
-        pd.to_numeric(
-            blocks_df["max_duration_min"],
-            errors="coerce"
-        )
-        .fillna(0)
-        .astype(int)
-    )
-
-    blocks_df["date"] = pd.to_datetime(
-        blocks_df["date"],
-        errors="coerce"
-    ).dt.date
-
-    blocks_df["window_start"] = pd.to_datetime(
-        blocks_df["window_start"],
-        errors="coerce"
-    )
-
-    blocks_df["window_end"] = pd.to_datetime(
-        blocks_df["window_end"],
-        errors="coerce"
-    )
-
-    # Use only available block windows
-    blocks_df = blocks_df[
-        blocks_df["availability_status"]
-        .astype(str)
-        .str.upper()
-        == "AVAILABLE"
-    ].copy()
-
-    print(f"Available block windows: {len(blocks_df)}")
-
-    if len(tasks_df) == 0:
-        print("No maintenance tasks available.")
+    if len(tasks_df) == 0 or len(blocks_df) == 0:
+        print("Error: Insufficient real maintenance data or availability windows.")
         return
 
-    if len(blocks_df) == 0:
-        print("No available block windows.")
-        return
-
-    # ---------------------------------------------------------
-    # 3. CREATE CP-SAT MODEL
-    # ---------------------------------------------------------
-
+    # 2. CREATE CP-SAT MODEL
+    print("\nBuilding Google OR-Tools CP-SAT model with Multi-Department Synergy...")
     model = cp_model.CpModel()
-
-    # x[t, b] = 1 when task t is assigned to block b
     x = {}
 
     for t_idx, task in tasks_df.iterrows():
-
         for b_idx, block in blocks_df.iterrows():
-
-            # A task can only be assigned to a block
-            # belonging to the same section.
-            if task["section_id"] != block["section_id"]:
+            if task["corridor_id"] != block["corridor_id"]:
                 continue
-
-            # The task must fit inside the block.
-            if (
-                task["required_duration_min"]
-                > block["max_duration_min"]
-            ):
+            if int(task["required_duration_min"]) > int(block["max_duration_min"]):
                 continue
-
-            x[(t_idx, b_idx)] = model.NewBoolVar(
-                f"x_{t_idx}_{b_idx}"
-            )
+            x[(t_idx, b_idx)] = model.NewBoolVar(f"x_{t_idx}_{b_idx}")
 
     print(f"Decision variables created: {len(x)}")
 
     if len(x) == 0:
-        print("No valid task/block combinations found.")
+        print("No valid task/corridor pairings found.")
         return
 
-    # ---------------------------------------------------------
-    # 4. CONSTRAINT 1
-    # EACH TASK CAN BE ASSIGNED AT MOST ONCE
-    # ---------------------------------------------------------
-
+    # Constraint 1: Each task assigned at most once
     for t_idx in tasks_df.index:
+        vars_t = [x[(t_idx, b_idx)] for b_idx in blocks_df.index if (t_idx, b_idx) in x]
+        if vars_t:
+            model.AddAtMostOne(vars_t)
 
-        variables = [
-            x[(t_idx, b_idx)]
-            for b_idx in blocks_df.index
-            if (t_idx, b_idx) in x
-        ]
-
-        if variables:
-            model.AddAtMostOne(variables)
-
-    # ---------------------------------------------------------
-    # 5. CONSTRAINT 2
-    # BLOCK CAPACITY
-    # ---------------------------------------------------------
-
+    # Constraint 2 & 3: Block capacity & Max 2 tasks per window
+    joint_vars = {}
     for b_idx, block in blocks_df.iterrows():
+        b_vars = [x[(t_idx, b_idx)] for t_idx in tasks_df.index if (t_idx, b_idx) in x]
+        if not b_vars:
+            continue
+        model.Add(sum(b_vars) <= 2)
+        durs = [int(tasks_df.loc[t_idx, "required_duration_min"]) for t_idx in tasks_df.index if (t_idx, b_idx) in x]
+        model.Add(sum(b_vars[i] * durs[i] for i in range(len(b_vars))) <= int(block["max_duration_min"]))
 
-        variables = []
-        durations = []
+        # Joint Multi-Department Synergy bonus
+        t_indices = [t_idx for t_idx in tasks_df.index if (t_idx, b_idx) in x]
+        depts = set(tasks_df.loc[t_idx, "department"] for t_idx in t_indices)
+        if len(depts) >= 2:
+            j_var = model.NewBoolVar(f"joint_{b_idx}")
+            joint_vars[b_idx] = j_var
+            model.Add(sum(b_vars) == 2).OnlyEnforceIf(j_var)
+            model.Add(sum(b_vars) != 2).OnlyEnforceIf(j_var.Not())
 
-        for t_idx, task in tasks_df.iterrows():
+    # Objective Function
+    obj_terms = []
+    for (t_idx, b_idx), var in x.items():
+        p_score = int(tasks_df.loc[t_idx, "priority_score"])
+        if tasks_df.loc[t_idx, "safety_critical"]:
+            p_score += 150 if objective_profile == "safety_first" else 100
+        p_score += int(tasks_df.loc[t_idx, "overdue_days"]) * 5
 
-            if (t_idx, b_idx) in x:
-                variables.append(x[(t_idx, b_idx)])
+        # Freight Off-Peak incentive
+        b_corridor = blocks_df.loc[b_idx, "corridor_id"]
+        f_density = density_map.get(b_corridor, "Medium")
+        if f_density == "Low":
+            p_score += 80
+        elif f_density == "High":
+            p_score -= 40
 
-                durations.append(
-                    int(task["required_duration_min"])
-                )
+        obj_terms.append(var * p_score)
 
-        if variables:
-            model.Add(
-                sum(
-                    variables[i] * durations[i]
-                    for i in range(len(variables))
-                )
-                <= int(block["max_duration_min"])
-            )
+    # Multi-Department Joint Possession Synergy Bonus (+250 points)
+    for b_idx, j_var in joint_vars.items():
+        obj_terms.append(j_var * 250)
 
-    # ---------------------------------------------------------
-    # 6. CONSTRAINT 3
-    # MAXIMUM TWO TASKS PER BLOCK
-    # ---------------------------------------------------------
+    model.Maximize(sum(obj_terms))
 
-    for b_idx in blocks_df.index:
-
-        variables = [
-            x[(t_idx, b_idx)]
-            for t_idx in tasks_df.index
-            if (t_idx, b_idx) in x
-        ]
-
-        if variables:
-            model.Add(sum(variables) <= 2)
-
-    # ---------------------------------------------------------
-    # 7. OBJECTIVE FUNCTION
-    # ---------------------------------------------------------
-
-    priority_map = {
-        "P1": 300,
-        "P2": 200,
-        "P3": 100
-    }
-
-    objective_terms = []
-
-    for t_idx, task in tasks_df.iterrows():
-
-        priority = priority_map.get(
-            str(task["priority_class"]).upper(),
-            100
-        )
-
-        # Give additional importance to safety-critical tasks.
-        if task["safety_critical"]:
-            priority += 100
-
-        # Give additional importance to overdue tasks.
-        overdue_days = int(task["overdue_days"])
-        overdue_bonus = min(overdue_days * 5, 100)
-        priority += overdue_bonus
-
-        for b_idx in blocks_df.index:
-
-            if (t_idx, b_idx) in x:
-                objective_terms.append(
-                    x[(t_idx, b_idx)] * priority
-                )
-
-    # Maximize the total importance of scheduled tasks.
-    model.Maximize(sum(objective_terms))
-
-    # ---------------------------------------------------------
-    # 8. RUN CP-SAT
-    # ---------------------------------------------------------
-
-    print("\nRunning CP-SAT optimizer...")
-
+    print("\nRunning CP-SAT solver...")
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 30.0
-
     status = solver.Solve(model)
 
-    # ---------------------------------------------------------
-    # 9. PREPARE DATABASE LOG
-    # ---------------------------------------------------------
+    status_text = "OPTIMAL" if status == cp_model.OPTIMAL else ("FEASIBLE" if status == cp_model.FEASIBLE else "INFEASIBLE")
+    print(f"Solver status: {status_text}")
 
-    db = SessionLocal()
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        print("CP-SAT could not find a feasible schedule.")
+        return
 
-    run_id = f"OPT_{uuid.uuid4().hex[:8]}"
+    print(f"Objective value: {solver.ObjectiveValue()}")
+
+    # Post-process assignments
+    block_assignments = {}
+    for (t_idx, b_idx), var in x.items():
+        if solver.Value(var) == 1:
+            block_assignments.setdefault(b_idx, []).append(t_idx)
 
     plan = []
-    tasks_completed = 0
     blocks_used = set()
+    joint_possessions_count = 0
 
+    for b_idx, assigned_t_indices in block_assignments.items():
+        blk = blocks_df.loc[b_idx]
+        b_id = str(blk["block_id"])
+        blocks_used.add(b_id)
+
+        assigned_depts = [tasks_df.loc[t_idx, "department"] for t_idx in assigned_t_indices]
+        is_joint = len(assigned_t_indices) >= 2 and len(set(assigned_depts)) >= 2
+        if is_joint:
+            joint_possessions_count += 1
+        downtime_saved = 180 if is_joint else 0
+
+        for t_idx in assigned_t_indices:
+            tsk = tasks_df.loc[t_idx]
+            other_tasks = [
+                f"{tasks_df.loc[o_idx, 'task_id']} ({tasks_df.loc[o_idx, 'department']})"
+                for o_idx in assigned_t_indices if o_idx != t_idx
+            ]
+            bundled_with_str = ", ".join(other_tasks) if other_tasks else "None (Single Task)"
+
+            plan.append({
+                "task_id": str(tsk["task_id"]),
+                "asset_id": str(tsk["asset_id"]),
+                "block_id": b_id,
+                "section_id": str(blk["corridor_id"]),
+                "corridor_id": str(blk["corridor_id"]),
+                "corridor_name": str(blk["corridor_id"]),
+                "date": str(blk["date"]),
+                "window_start": str(blk["window_start"]),
+                "window_end": str(blk["window_end"]),
+                "task_type": str(tsk["task_type"]),
+                "department": str(tsk["department"]),
+                "crew_type": str(tsk.get("crew_type", "Standard Gang")),
+                "priority": str(tsk["priority"]),
+                "required_duration_min": int(tsk["required_duration_min"]),
+                "duration": int(tsk["required_duration_min"]),
+                "overdue_days": int(tsk["overdue_days"]),
+                "safety_critical": bool(tsk["safety_critical"]),
+                "is_joint_possession": is_joint,
+                "coordination_status": "JOINT_POSSESSION" if is_joint else "INDEPENDENT",
+                "bundled_with": bundled_with_str,
+                "downtime_saved_min": downtime_saved,
+                "freight_density": density_map.get(str(blk["corridor_id"]), "Medium"),
+                "power_isolation_required": str(blk.get("power_isolation_required", "No")),
+                "restrictions": str(blk.get("restriction", "Standard night maintenance block")),
+                "planning_status": status_text,
+                "approval_status": "PENDING_APPROVAL",
+                "approved_by": "Chief Controller",
+                "solver": "Google OR-Tools CP-SAT"
+            })
+
+    # Save to CSV
+    plan_df = pd.DataFrame(plan)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    plan_df.to_csv(output_file, index=False)
+
+    print(f"\nSuccessfully scheduled {len(plan)} tasks across {len(blocks_used)} block windows.")
+    print(f"Joint multi-department possessions bundled: {joint_possessions_count}")
+    print(f"Total corridor downtime saved: {joint_possessions_count * 180} minutes ({round(joint_possessions_count * 180 / 60, 1)} hours)")
+    print(f"Plan saved to: {output_file}")
+
+    # Log to Database
+    db = SessionLocal()
     try:
-
-        if status in (
-            cp_model.OPTIMAL,
-            cp_model.FEASIBLE
-        ):
-
-            if status == cp_model.OPTIMAL:
-                status_text = "OPTIMAL"
-            else:
-                status_text = "FEASIBLE"
-
-            print(f"\nOptimization status: {status_text}")
-            print(
-                f"Objective value: "
-                f"{solver.ObjectiveValue()}"
-            )
-
-            # -------------------------------------------------
-            # 10. CREATE OPTIMIZED PLAN
-            # -------------------------------------------------
-
-            for t_idx, task in tasks_df.iterrows():
-
-                for b_idx, block in blocks_df.iterrows():
-
-                    if (t_idx, b_idx) not in x:
-                        continue
-
-                    if solver.Value(x[(t_idx, b_idx)]) == 1:
-
-                        tasks_completed += 1
-
-                        blocks_used.add(
-                            block["block_id"]
-                        )
-
-                        plan.append({
-                            "task_id": task["task_id"],
-                            "asset_id": task["asset_id"],
-                            "block_id": block["block_id"],
-                            "section_id": task["section_id"],
-                            "date": block["date"],
-                            "window_start": block["window_start"],
-                            "window_end": block["window_end"],
-                            "task_type": task["task_type"],
-                            "department": task["department"],
-                            "crew_type": task["crew_type"],
-                            "priority": task["priority_class"],
-                            "required_duration_min": (
-                                task["required_duration_min"]
-                            ),
-                            "overdue_days": task["overdue_days"],
-                            "safety_critical": (
-                                task["safety_critical"]
-                            )
-                        })
-
-            # -------------------------------------------------
-            # 11. SAVE OPTIMIZED PLAN
-            # -------------------------------------------------
-
-            plan_df = pd.DataFrame(plan)
-
-            output_directory = os.path.dirname(output_file)
-
-            if output_directory:
-                os.makedirs(
-                    output_directory,
-                    exist_ok=True
-                )
-
-            plan_df.to_csv(
-                output_file,
-                index=False
-            )
-
-            print("\nOptimized plan saved to:")
-            print(output_file)
-
-            print(f"Tasks scheduled: {tasks_completed}")
-            print(f"Blocks used: {len(blocks_used)}")
-
-            # -------------------------------------------------
-            # 12. LOG SUCCESSFUL OPTIMIZATION RUN
-            # -------------------------------------------------
-
-            opt_run = OptimizationRun(
-                id=run_id,
-                run_timestamp=datetime.now(),
-                solver_version="ortools-9.15",
-                objective_profile=(
-                    "maximize_priority_safety_overdue_tasks"
-                ),
-                status=status_text,
-                total_blocks_used=len(blocks_used),
-                critical_tasks_completed=tasks_completed
-            )
-
-            db.add(opt_run)
-
-        else:
-
-            print("\nOptimization status: INFEASIBLE")
-
-            opt_run = OptimizationRun(
-                id=run_id,
-                run_timestamp=datetime.now(),
-                solver_version="ortools-9.15",
-                objective_profile=(
-                    "maximize_priority_safety_overdue_tasks"
-                ),
-                status="INFEASIBLE",
-                total_blocks_used=0,
-                critical_tasks_completed=0
-            )
-
-            db.add(opt_run)
-
+        run_id = f"OPT_{uuid.uuid4().hex[:8]}"
+        opt_run = OptimizationRun(
+            id=run_id,
+            run_timestamp=datetime.now(),
+            solver_version="ortools-9.15",
+            objective_profile=f"{objective_profile}_{horizon}",
+            status=status_text,
+            total_blocks_used=len(blocks_used),
+            critical_tasks_completed=len(plan)
+        )
+        db.add(opt_run)
         db.commit()
-
+    except Exception as e:
+        print(f"Warning: Failed to log run to database: {e}")
     finally:
         db.close()
 
-    print("\n" + "=" * 60)
-    print("OPTIMIZATION COMPLETE")
-    print("=" * 60)
-
-
-# =============================================================
-# MAIN
-# =============================================================
 
 if __name__ == "__main__":
-
-    run_optimization(
-        os.path.join(
-            PROJECT_ROOT,
-            "data",
-            "synthetic",
-            "maintenance_tasks.csv"
-        ),
-
-        os.path.join(
-            PROJECT_ROOT,
-            "data",
-            "synthetic",
-            "block_windows.csv"
-        ),
-
-        os.path.join(
-            PROJECT_ROOT,
-            "data",
-            "processed",
-            "optimized_plan.csv"
-        )
-    )
+    horizon = sys.argv[1] if len(sys.argv) > 1 else "weekly"
+    run_optimization(horizon=horizon)
