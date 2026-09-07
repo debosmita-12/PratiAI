@@ -48,6 +48,22 @@ class MaintenanceTask(Base):
     dependency_group = Column(String)
     crew_type = Column(String)
 
+class MaintenanceHistory(Base):
+    __tablename__ = "maintenance_history"
+
+    id = Column(String, primary_key=True)
+    task_id = Column(String, ForeignKey("maintenance_tasks.id"))
+    asset_id = Column(String, ForeignKey("assets.id"))
+    corridor_id = Column(String, ForeignKey("sections.id"))
+    planned_date = Column(DateTime)
+    actual_date = Column(DateTime)
+    maintenance_type = Column(String)
+    department = Column(String)
+    planned_duration_hours = Column(Float)
+    actual_duration_hours = Column(Float)
+    completion_status = Column(String)
+    delay_minutes = Column(Integer)
+    remarks = Column(String)
 class Defect(Base):
     __tablename__ = "defects"
     id = Column(String, primary_key=True)
@@ -146,3 +162,16 @@ class DataQualityEvent(Base):
     record_id = Column(String)
     issue_type = Column(String)
     severity = Column(String)
+class GoodsTrainForecast(Base):
+    __tablename__ = "goods_train_forecasts"
+
+    id = Column(String, primary_key=True)
+    forecast_date = Column(DateTime)
+    corridor_id = Column(String)
+    zone = Column(String)
+    density_tier = Column(String)
+    predicted_goods_trains = Column(Integer)
+    lower_bound = Column(Integer)
+    upper_bound = Column(Integer)
+    forecast_horizon_days = Column(Integer)
+    data_source = Column(String)

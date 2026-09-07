@@ -1,0 +1,34 @@
+corridor_id,description,zone,density_tier
+NDLS-GZB,New Delhi - Ghaziabad,NR,High
+NDLS-UMB,New Delhi - Ambala,NR,Medium
+NDLS-ASR,New Delhi - Amritsar,NR,Medium
+NDLS-JHS,New Delhi - Jhansi,NCR,Medium
+GZB-CNB,Ghaziabad - Kanpur Central,NCR,High
+CNB-ALD,Kanpur - Prayagraj,NCR,High
+ALD-MGS,Prayagraj - Pt Deen Dayal Upadhyaya Jn (Mughalsarai),NCR/ECR,High
+MGS-HWH,DDU Jn - Howrah,ECR/ER,High
+HWH-KGP,Howrah - Kharagpur,SER,High
+KGP-VSKP,Kharagpur - Visakhapatnam,SER/ECoR,Medium
+VSKP-BZA,Visakhapatnam - Vijayawada,ECoR/SCR,Medium
+BZA-MAS,Vijayawada - Chennai Central,SCR/SR,High
+MAS-JTJ,Chennai - Jolarpettai,SR,Medium
+JTJ-SBC,Jolarpettai - Bengaluru,SR/SWR,Medium
+SBC-UBL,Bengaluru - Hubballi,SWR,Medium
+UBL-PUNE,Hubballi - Pune,SWR/CR,Medium
+PUNE-CSMT,Pune - Mumbai CSMT,CR,Medium
+CSMT-BSR,Mumbai CSMT - Bhusawal,CR,High
+BSR-BPL,Bhusawal - Bhopal,CR/WCR,High
+BPL-JHS,Bhopal - Jhansi,WCR/NCR,Medium
+ADI-BRC,Ahmedabad - Vadodara,WR,High
+BRC-ST,Vadodara - Surat,WR,High
+ST-BCT,Surat - Mumbai Central,WR,High
+DLI-JU,Delhi (DLI) - Jodhpur,NWR,Low
+JU-JP,Jodhpur - Jaipur,NWR,Low
+JP-ADI,Jaipur - Ahmedabad,NWR/WR,Low
+HWH-NJP,Howrah - New Jalpaiguri,ER/NFR,Low
+NJP-GHY,New Jalpaiguri - Guwahati,NFR,Low
+SBC-MAS,Bengaluru - Chennai Central,SWR/SR,Medium
+BZA-SC,Vijayawada - Secunderabad,SCR,Medium
+SC-NGP,Secunderabad - Nagpur,SCR/SECR,Medium
+NGP-BSP,Nagpur - Bilaspur,SECR,Medium
+BSP-R,Bilaspur - Raipur,SECR,Low

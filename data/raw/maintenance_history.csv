@@ -1,0 +1,21 @@
+history_id,task_id,asset_id,corridor_id,planned_date,actual_date,maintenance_type,department,planned_duration_hours,actual_duration_hours,completion_status,delay_minutes,remarks
+HIST001,TASK001,ASSET001,CORR001,2026-08-15,2026-08-15,Rail inspection,Engineering,5,6,Completed,0,Minor defect found
+HIST002,TASK002,ASSET002,CORR001,2026-07-30,2026-07-31,Signal maintenance,Signalling,3,4,Completed,12,Testing took longer than planned
+HIST003,TASK003,ASSET003,CORR002,2026-08-02,2026-08-02,OHE inspection,Electrical,4,5,Completed,8,Additional insulator damage
+HIST004,TASK004,ASSET004,CORR002,2026-06-20,2026-06-21,Track correction,Engineering,6,8,Completed,18,Extra tamping required
+HIST005,TASK005,ASSET005,CORR003,2026-07-18,2026-07-18,Point machine service,Signalling,3,3,Completed,0,Completed as planned
+HIST006,TASK006,ASSET006,CORR003,2026-05-28,2026-05-28,Battery inspection,Electrical,2,2,Completed,0,Battery capacity acceptable
+HIST007,TASK007,ASSET007,CORR004,2026-08-10,2026-08-11,Bridge inspection,Engineering,6,7,Completed,25,Joint wear detected
+HIST008,TASK008,ASSET008,CORR004,2026-04-16,2026-04-16,Cable testing,Telecom,3,3,Completed,0,No fault detected
+HIST009,TASK009,ASSET009,CORR005,2026-07-11,2026-07-12,Level crossing repair,Engineering,5,6,Completed,20,Replacement material delay
+HIST010,TASK010,ASSET010,CORR005,2026-08-01,2026-08-01,ABS testing,Signalling,4,4,Completed,0,Completed as planned
+HIST011,TASK011,ASSET011,CORR006,2026-07-22,2026-07-23,Transformer maintenance,Electrical,8,9,Completed,30,Cooling system required cleaning
+HIST012,TASK012,ASSET012,CORR006,2026-06-12,2026-06-12,Rail grinding,Engineering,9,10,Completed,10,Additional grinding pass
+HIST013,TASK013,ASSET013,CORR007,2026-07-05,2026-07-05,Interlocking inspection,Signalling,5,5,Completed,0,Completed as planned
+HIST014,TASK014,ASSET014,CORR007,2026-05-14,2026-05-15,Radio maintenance,Telecom,3,4,Completed,15,Connector replacement required
+HIST015,TASK015,ASSET015,CORR008,2026-03-20,2026-03-21,Culvert inspection,Engineering,4,5,Completed,12,Water removal took extra time
+HIST016,TASK016,ASSET016,CORR008,2026-06-29,2026-06-29,Switch heater inspection,Electrical,3,3,Completed,0,Completed as planned
+HIST017,TASK017,ASSET017,CORR009,2026-07-26,2026-07-27,Sleeper replacement,Engineering,7,8,Completed,22,More sleepers damaged than expected
+HIST018,TASK018,ASSET018,CORR009,2026-08-18,2026-08-18,Track circuit testing,Signalling,4,4,Completed,0,Completed as planned
+HIST019,TASK019,ASSET019,CORR010,2026-07-09,2026-07-10,OHE inspection,Electrical,5,6,Completed,16,Contact wire adjustment required
+HIST020,TASK020,ASSET020,CORR010,2026-05-30,2026-06-01,Ballast renewal,Engineering,10,12,Completed,35,Material unloading delayed

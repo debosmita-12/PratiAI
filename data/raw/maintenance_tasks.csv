@@ -1,0 +1,21 @@
+task_id,asset_id,corridor_id,department,task_description,criticality,status,last_due_date,recommended_date,estimated_duration_hours,risk_if_delayed,priority_score
+TASK001,ASSET001,CORR001,Engineering,Rail fracture inspection,Critical,Overdue,2026-09-05,2026-09-08,6,Track safety risk,95
+TASK002,ASSET002,CORR001,Signalling,Signal relay replacement,High,Pending,2026-09-10,2026-09-12,4,Signal reliability,82
+TASK003,ASSET003,CORR002,Electrical,OHE insulator replacement,High,Pending,2026-09-11,2026-09-15,5,Traction safety,88
+TASK004,ASSET004,CORR002,Engineering,Track geometry correction,Medium,Pending,2026-09-16,2026-09-20,8,Ride quality,64
+TASK005,ASSET005,CORR003,Signalling,Point machine servicing,High,Overdue,2026-09-03,2026-09-09,3,Route availability,86
+TASK006,ASSET006,CORR003,Electrical,Battery bank inspection,Medium,Pending,2026-09-18,2026-09-22,2,Backup power,58
+TASK007,ASSET007,CORR004,Engineering,Bridge expansion-joint inspection,Critical,Pending,2026-09-09,2026-09-13,7,Structural safety,91
+TASK008,ASSET008,CORR004,Telecom,Optical-fibre cable testing,Low,Pending,2026-09-25,2026-09-30,3,Communication reliability,42
+TASK009,ASSET009,CORR005,Engineering,Level-crossing track repair,High,Overdue,2026-09-04,2026-09-10,6,Public safety,93
+TASK010,ASSET010,CORR005,Signalling,Automatic block signal testing,Critical,Pending,2026-09-12,2026-09-16,4,Train movement safety,96
+TASK011,ASSET011,CORR006,Electrical,Traction transformer maintenance,High,Pending,2026-09-17,2026-09-21,9,Power availability,79
+TASK012,ASSET012,CORR006,Engineering,Rail grinding,Medium,Pending,2026-09-22,2026-09-27,10,Wheel-rail condition,61
+TASK013,ASSET013,CORR007,Signalling,Interlocking equipment inspection,Critical,Overdue,2026-09-02,2026-09-08,5,Interlocking safety,94
+TASK014,ASSET014,CORR007,Telecom,Radio communication maintenance,Medium,Pending,2026-09-19,2026-09-24,4,Control communication,55
+TASK015,ASSET015,CORR008,Engineering,Culvert cleaning and inspection,Low,Pending,2026-09-26,2026-10-02,5,Drainage reliability,35
+TASK016,ASSET016,CORR008,Electrical,Switch heater inspection,Medium,Pending,2026-09-20,2026-09-25,3,Point operation,57
+TASK017,ASSET017,CORR009,Engineering,Sleeper replacement,High,Pending,2026-09-14,2026-09-18,8,Track condition,75
+TASK018,ASSET018,CORR009,Signalling,Track circuit troubleshooting,Critical,Overdue,2026-09-06,2026-09-11,4,Train detection,97
+TASK019,ASSET019,CORR010,Electrical,OHE contact-wire inspection,High,Pending,2026-09-15,2026-09-19,6,Traction safety,84
+TASK020,ASSET020,CORR010,Engineering,Ballast renewal,Medium,Pending,2026-09-23,2026-09-29,12,Track stability,60

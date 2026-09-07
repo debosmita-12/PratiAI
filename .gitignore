@@ -1,8 +1,23 @@
-venv/
+# Python
 __pycache__/
-*.pyc
-node_modules/
+*.py[cod]
+.venv/
+venv/
 .env
-data/processed/
-data/synthetic/
-ml/models/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

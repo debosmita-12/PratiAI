@@ -1,0 +1,21 @@
+asset_id,asset_type,corridor_id,corridor_name,department,asset_location,criticality,installation_date,last_maintenance_date,next_maintenance_date,condition_score,failure_risk_score,operational_status
+ASSET001,Track,CORR001,NDLS-GZB,Engineering,Section A1,Critical,2021-04-12,2026-08-15,2026-09-05,42,91,Active
+ASSET002,Signal,CORR001,NDLS-GZB,Signalling,Signal S-101,High,2019-07-21,2026-07-30,2026-09-10,55,84,Active
+ASSET003,OHE,CORR002,GZB-ALD,Electrical,OHE Mast M-204,High,2020-02-18,2026-08-02,2026-09-11,48,87,Active
+ASSET004,Track,CORR002,GZB-ALD,Engineering,Section B4,Medium,2018-11-09,2026-06-20,2026-09-16,68,63,Active
+ASSET005,Point Machine,CORR003,ALD-MGS,Signalling,Point PM-32,High,2022-03-14,2026-07-18,2026-09-03,39,89,Active
+ASSET006,Battery System,CORR003,ALD-MGS,Electrical,Battery B-17,Medium,2021-09-05,2026-05-28,2026-09-18,61,58,Active
+ASSET007,Bridge,CORR004,MGS-DDU,Engineering,Bridge BR-08,Critical,2017-01-23,2026-08-10,2026-09-09,36,94,Active
+ASSET008,Telecom Cable,CORR004,MGS-DDU,Telecom,Cable OFC-44,Low,2023-06-11,2026-04-16,2026-09-25,74,39,Active
+ASSET009,Level Crossing,CORR005,DDU-CPR,Engineering,LC Gate 19,High,2019-10-08,2026-07-11,2026-09-04,44,92,Active
+ASSET010,Automatic Block Signal,CORR005,DDU-CPR,Signalling,ABS-221,Critical,2020-12-17,2026-08-01,2026-09-12,51,96,Active
+ASSET011,Traction Transformer,CORR006,CPR-SEE,Electrical,Transformer T-09,High,2018-05-19,2026-07-22,2026-09-17,57,81,Active
+ASSET012,Track,CORR006,CPR-SEE,Engineering,Section C7,Medium,2022-08-27,2026-06-12,2026-09-22,71,59,Active
+ASSET013,Interlocking,CORR007,SEE-BJU,Signalling,EI-Station-03,Critical,2016-09-30,2026-07-05,2026-09-02,33,95,Active
+ASSET014,Radio System,CORR007,SEE-BJU,Telecom,Radio R-12,Medium,2021-02-06,2026-05-14,2026-09-19,66,52,Active
+ASSET015,Culvert,CORR008,BJU-KIR,Engineering,Culvert CV-07,Low,2015-03-12,2026-03-20,2026-09-26,78,34,Active
+ASSET016,Switch Heater,CORR008,BJU-KIR,Electrical,Heater SH-06,Medium,2020-10-24,2026-06-29,2026-09-20,63,56,Active
+ASSET017,Track,CORR009,KIR-NJP,Engineering,Section D2,High,2019-04-02,2026-07-26,2026-09-14,49,77,Active
+ASSET018,Track Circuit,CORR009,KIR-NJP,Signalling,TC-118,Critical,2018-12-01,2026-08-18,2026-09-06,29,98,Active
+ASSET019,OHE,CORR010,NJP-GHY,Electrical,Contact Wire CW-31,High,2020-06-13,2026-07-09,2026-09-15,52,86,Active
+ASSET020,Track,CORR010,NJP-GHY,Engineering,Section E5,Medium,2021-11-29,2026-05-30,2026-09-23,73,62,Active

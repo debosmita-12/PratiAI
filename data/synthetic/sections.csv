@@ -1,0 +1,5 @@
+id,station_from,station_to,distance_km
+SEC1,STN1,STN2,10.5
+SEC2,STN2,STN3,12.0
+SEC3,STN3,STN4,8.5
+SEC4,STN4,STN5,15.0
