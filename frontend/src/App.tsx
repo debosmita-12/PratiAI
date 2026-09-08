@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
   Home, Map, Calendar, Wrench, BarChart2, Settings, LogOut,
@@ -28,10 +28,22 @@ import { IntegrationsView } from './components/IntegrationsView';
 import { SettingsView } from './components/SettingsView';
 
 function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void }) {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'map' | 'planning' | 'tasks' | 'reports' | 'settings' | 'approval'
-  >('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine active tab from URL path
+  const getActiveTab = () => {
+    const path = location.pathname.toLowerCase();
+    if (path.includes('map') || path.includes('network')) return 'map';
+    if (path.includes('planning')) return 'planning';
+    if (path.includes('tasks')) return 'tasks';
+    if (path.includes('report') || path.includes('conflict') || path.includes('weekly') || path.includes('monthly') || path.includes('integration')) return 'reports';
+    if (path.includes('setting')) return 'settings';
+    if (path.includes('approval')) return 'approval';
+    return 'dashboard';
+  };
+
+  const activeTab = getActiveTab();
 
   // Reports sub-tab
   const [reportsSubTab, setReportsSubTab] = useState<'conflicts' | 'weekly' | 'monthly' | 'integrations' | 'approval'>('conflicts');
@@ -209,11 +221,11 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
 
   // Sidebar navigation menu items matching reference image exactly
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'map', label: 'Network Map', icon: Map },
-    { id: 'planning', label: 'Block Planning', icon: Calendar },
-    { id: 'tasks', label: 'Maintenance Tasks', icon: Wrench },
-    { id: 'reports', label: 'Reports', icon: BarChart2 },
+    { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+    { id: 'map', label: 'Network Map', icon: Map, path: '/network' },
+    { id: 'planning', label: 'Block Planning', icon: Calendar, path: '/planning' },
+    { id: 'tasks', label: 'Maintenance Tasks', icon: Wrench, path: '/tasks' },
+    { id: 'reports', label: 'Reports', icon: BarChart2, path: '/reports' },
   ];
 
   return (
@@ -290,7 +302,7 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as typeof activeTab)}
+                  onClick={() => navigate(item.path)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -340,7 +352,7 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
           {/* Settings & Logout Items */}
           <div style={{ display: 'grid', gap: 6 }}>
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => navigate('/settings')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -525,117 +537,257 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
             </div>
           )}
 
-          {/* VIEW: DASHBOARD (Identical to user reference screenshot) */}
-          {activeTab === 'dashboard' && (
-            <OverviewView
-              totalTasks={totalTasks}
-              plans={plans}
-              tasks={tasks}
-              blocks={blocks}
-              conflicts={conflicts}
-              optStatus={optStatus}
-              optObjective={optObjective}
-              optimizing={optimizing}
-              onRunOptimizer={handleRunOptimizer}
-              onNavigateToConflicts={() => {
-                setActiveTab('reports');
-                setReportsSubTab('conflicts');
-              }}
-              onNavigateToPlanning={() => setActiveTab('planning')}
-            />
-          )}
+          <Routes>
+            {/* Redirect / and /overview to /dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/overview" element={<Navigate to="/dashboard" replace />} />
 
-          {/* VIEW: NETWORK MAP & AI ANALYZER */}
-          {activeTab === 'map' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-                    Network Map & AI Corridor Analyzer
-                  </h1>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-                    Geospatial view of {stations.length} Indian Railways stations and active corridors.
-                  </p>
+            {/* DASHBOARD: Identical to User Reference Screenshot */}
+            <Route path="/dashboard" element={
+              <OverviewView
+                totalTasks={totalTasks}
+                plans={plans}
+                tasks={tasks}
+                blocks={blocks}
+                conflicts={conflicts}
+                optStatus={optStatus}
+                optObjective={optObjective}
+                optimizing={optimizing}
+                onRunOptimizer={handleRunOptimizer}
+                onNavigateToConflicts={() => {
+                  setReportsSubTab('conflicts');
+                  navigate('/reports');
+                }}
+                onNavigateToPlanning={() => navigate('/planning')}
+              />
+            } />
+
+            {/* NETWORK MAP & AI */}
+            <Route path="/network" element={
+              <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+                      Network Map & AI Corridor Analyzer
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                      Geospatial view of {stations.length} Indian Railways stations and active corridors.
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(360px, 1fr)', gap: 20 }}>
-                <MapView
-                  stations={stations}
-                  sections={sections}
-                  selectedStation={selectedStation}
-                  onSelectStation={(s) => {
-                    setSelectedStation(s);
-                    setRouteFrom(s.code);
-                  }}
-                  routeAnalysis={routeAnalysis}
-                />
-
-                <div style={{ display: 'grid', gap: 16 }}>
-                  {selectedStation && (
-                    <div style={cardStyle}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <div>
-                          <span style={badgeStyle('rgba(56, 189, 248, 0.2)', theme.cyan)}>
-                            STATION JUNCTION INSPECTOR
-                          </span>
-                          <h3 style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 800, color: theme.text }}>
-                            {selectedStation.name} ({selectedStation.code})
-                          </h3>
-                        </div>
-                        <div style={{ fontSize: 11, color: theme.textDim }}>
-                          {selectedStation.lat.toFixed(4)}, {selectedStation.lon.toFixed(4)}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12 }}>
-                        <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
-                          <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Connected Corridors</span>
-                          <strong style={{ color: theme.text }}>
-                            {sections.filter(sec => sec.station_from === selectedStation.code || sec.station_to === selectedStation.code).length} Lines
-                          </strong>
-                        </div>
-                        <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
-                          <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Scheduled Blocks</span>
-                          <strong style={{ color: theme.cyan }}>
-                            {plans.filter(p => (p.section_id || '').includes(selectedStation.code)).length} Blocks
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <RouteAnalyzer
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(360px, 1fr)', gap: 20 }}>
+                  <MapView
                     stations={stations}
-                    token={token}
-                    fromStation={routeFrom}
-                    setFromStation={setRouteFrom}
-                    toStation={routeTo}
-                    setToStation={setRouteTo}
+                    sections={sections}
+                    selectedStation={selectedStation}
+                    onSelectStation={(s) => {
+                      setSelectedStation(s);
+                      setRouteFrom(s.code);
+                    }}
                     routeAnalysis={routeAnalysis}
-                    setRouteAnalysis={setRouteAnalysis}
                   />
+
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    {selectedStation && (
+                      <div style={cardStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <div>
+                            <span style={badgeStyle('rgba(56, 189, 248, 0.2)', theme.cyan)}>
+                              STATION JUNCTION INSPECTOR
+                            </span>
+                            <h3 style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 800, color: theme.text }}>
+                              {selectedStation.name} ({selectedStation.code})
+                            </h3>
+                          </div>
+                          <div style={{ fontSize: 11, color: theme.textDim }}>
+                            {selectedStation.lat.toFixed(4)}, {selectedStation.lon.toFixed(4)}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12 }}>
+                          <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
+                            <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Connected Corridors</span>
+                            <strong style={{ color: theme.text }}>
+                              {sections.filter(sec => sec.station_from === selectedStation.code || sec.station_to === selectedStation.code).length} Lines
+                            </strong>
+                          </div>
+                          <div style={{ padding: 10, background: theme.bg, borderRadius: 8 }}>
+                            <span style={{ color: theme.textDim, display: 'block', marginBottom: 2 }}>Scheduled Blocks</span>
+                            <strong style={{ color: theme.cyan }}>
+                              {plans.filter(p => (p.section_id || '').includes(selectedStation.code)).length} Blocks
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <RouteAnalyzer
+                      stations={stations}
+                      token={token}
+                      fromStation={routeFrom}
+                      setFromStation={setRouteFrom}
+                      toStation={routeTo}
+                      setToStation={setRouteTo}
+                      routeAnalysis={routeAnalysis}
+                      setRouteAnalysis={setRouteAnalysis}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            } />
+            <Route path="/map" element={<Navigate to="/network" replace />} />
 
-          {/* VIEW: BLOCK PLANNING (With Joint Possessions & Form IR-CO-04 Sanctions) */}
-          {activeTab === 'planning' && (
-            <div style={{ display: 'grid', gap: 18 }}>
-              {/* Planning Sub-Header Navigation */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-                    Automatic Block Planning Workspace
-                  </h1>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-                    Google OR-Tools CP-SAT multi-department synergy engine and Official Sanction Memo generator.
-                  </p>
+            {/* BLOCK PLANNING */}
+            <Route path="/planning" element={
+              <div style={{ display: 'grid', gap: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+                      Automatic Block Planning Workspace
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                      Google OR-Tools CP-SAT multi-department synergy engine and Official Sanction Memo generator.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => navigate('/approval')}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        color: '#0f172a',
+                        padding: '8px 14px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
+                      <FileCheck size={14} color="#16a34a" />
+                      Possession Sign-Off & Sanctions
+                    </button>
+                    <button
+                      onClick={handleRunOptimizer}
+                      disabled={optimizing}
+                      style={{
+                        ...buttonPrimary,
+                        padding: '8px 16px',
+                        fontSize: 12
+                      }}
+                    >
+                      {optimizing ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} fill="#ffffff" />}
+                      Re-Optimize Schedule
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+
+                <PlanningView
+                  plans={plans}
+                  totalTasks={totalTasks}
+                  blocksUsedCount={blocksUsedCount}
+                  selectedHorizon={selectedHorizon}
+                  setSelectedHorizon={setSelectedHorizon}
+                  objectiveProfile={objectiveProfile}
+                  setObjectiveProfile={setObjectiveProfile}
+                  optStatus={optStatus}
+                  optObjective={optObjective}
+                  lastOptimizedAt={lastOptimizedAt}
+                  optimizing={optimizing}
+                  onRunOptimizer={handleRunOptimizer}
+                  onApproveTask={handleApproveTask}
+                  approvingTaskId={approvingTaskId}
+                />
+              </div>
+            } />
+
+            {/* MAINTENANCE TASKS */}
+            <Route path="/tasks" element={<TasksView tasks={tasks} />} />
+
+            {/* REPORTS */}
+            <Route path="/reports" element={
+              <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 14 }}>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+                      Operations & Conflict Reports
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                      Review corridor conflicts, weekly schedules, monthly rolling forecasts, and central feeds.
+                    </p>
+                  </div>
+
+                  {/* Sub-Tabs */}
+                  <div style={{ display: 'flex', gap: 8, background: '#e2e8f0', padding: 4, borderRadius: 10 }}>
+                    {[
+                      { id: 'conflicts', label: `Conflicts (${conflicts.length})` },
+                      { id: 'weekly', label: 'Weekly Plan' },
+                      { id: 'monthly', label: 'Monthly Forecast' },
+                      { id: 'integrations', label: 'IT Feeds' },
+                      { id: 'approval', label: 'Sanction Memos' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setReportsSubTab(tab.id as typeof reportsSubTab)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 8,
+                          background: reportsSubTab === tab.id ? '#ffffff' : 'transparent',
+                          color: reportsSubTab === tab.id ? '#0f172a' : '#64748b',
+                          fontWeight: reportsSubTab === tab.id ? 700 : 500,
+                          border: 'none',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          boxShadow: reportsSubTab === tab.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {reportsSubTab === 'conflicts' && <ConflictsView conflicts={conflicts} />}
+                {reportsSubTab === 'weekly' && <WeeklyView plans={plans} />}
+                {reportsSubTab === 'monthly' && <MonthlyView goodsForecasts={goodsForecasts} />}
+                {reportsSubTab === 'integrations' && <IntegrationsView integrations={integrations} />}
+                {reportsSubTab === 'approval' && (
+                  <ApprovalView
+                    plans={plans}
+                    approverName={approverName}
+                    setApproverName={setApproverName}
+                    approverRole={approverRole}
+                    setApproverRole={setApproverRole}
+                    approvalRemarks={approvalRemarks}
+                    setApprovalRemarks={setApprovalRemarks}
+                    onApproveTask={handleApproveTask}
+                    approvingTaskId={approvingTaskId}
+                  />
+                )}
+              </div>
+            } />
+            <Route path="/conflicts" element={<Navigate to="/reports" replace />} />
+            <Route path="/weekly" element={<Navigate to="/reports" replace />} />
+            <Route path="/monthly" element={<Navigate to="/reports" replace />} />
+            <Route path="/integrations" element={<Navigate to="/reports" replace />} />
+
+            {/* POSSESSION SIGN-OFF & OFFICIAL SANCTION MEMOS */}
+            <Route path="/approval" element={
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
+                      Control Office Sanction Workspace
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                      Official Indian Railways Form IR-CO-04 Sanction Notices, PTW Clearances & Chief Controller Sign-Off.
+                    </p>
+                  </div>
                   <button
-                    onClick={() => setActiveTab('approval')}
+                    onClick={() => navigate('/planning')}
                     style={{
                       background: '#ffffff',
                       border: '1px solid #cbd5e1',
@@ -644,100 +796,13 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
                       borderRadius: 8,
                       fontSize: 12,
                       fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6
+                      cursor: 'pointer'
                     }}
                   >
-                    <FileCheck size={14} color="#16a34a" />
-                    Possession Sign-Off & Sanctions
-                  </button>
-                  <button
-                    onClick={handleRunOptimizer}
-                    disabled={optimizing}
-                    style={{
-                      ...buttonPrimary,
-                      padding: '8px 16px',
-                      fontSize: 12
-                    }}
-                  >
-                    {optimizing ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} fill="#ffffff" />}
-                    Re-Optimize Schedule
+                    ← Back to Planning
                   </button>
                 </div>
-              </div>
 
-              <PlanningView
-                plans={plans}
-                totalTasks={totalTasks}
-                blocksUsedCount={blocksUsedCount}
-                selectedHorizon={selectedHorizon}
-                setSelectedHorizon={setSelectedHorizon}
-                objectiveProfile={objectiveProfile}
-                setObjectiveProfile={setObjectiveProfile}
-                optStatus={optStatus}
-                optObjective={optObjective}
-                lastOptimizedAt={lastOptimizedAt}
-                optimizing={optimizing}
-                onRunOptimizer={handleRunOptimizer}
-                onApproveTask={handleApproveTask}
-                approvingTaskId={approvingTaskId}
-              />
-            </div>
-          )}
-
-          {/* VIEW: MAINTENANCE TASKS */}
-          {activeTab === 'tasks' && <TasksView tasks={tasks} />}
-
-          {/* VIEW: REPORTS (Aggregated Reports Workspace) */}
-          {activeTab === 'reports' && (
-            <div style={{ display: 'grid', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 14 }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-                    Operations & Conflict Reports
-                  </h1>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-                    Review corridor conflicts, weekly schedules, monthly rolling forecasts, and central feeds.
-                  </p>
-                </div>
-
-                {/* Sub-Tabs Pills */}
-                <div style={{ display: 'flex', gap: 8, background: '#e2e8f0', padding: 4, borderRadius: 10 }}>
-                  {[
-                    { id: 'conflicts', label: `Conflicts (${conflicts.length})` },
-                    { id: 'weekly', label: 'Weekly Plan' },
-                    { id: 'monthly', label: 'Monthly Forecast' },
-                    { id: 'integrations', label: 'IT Feeds' },
-                    { id: 'approval', label: 'Sanction Memos' }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setReportsSubTab(tab.id as typeof reportsSubTab)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 8,
-                        background: reportsSubTab === tab.id ? '#ffffff' : 'transparent',
-                        color: reportsSubTab === tab.id ? '#0f172a' : '#64748b',
-                        fontWeight: reportsSubTab === tab.id ? 700 : 500,
-                        border: 'none',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        boxShadow: reportsSubTab === tab.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {reportsSubTab === 'conflicts' && <ConflictsView conflicts={conflicts} />}
-              {reportsSubTab === 'weekly' && <WeeklyView plans={plans} />}
-              {reportsSubTab === 'monthly' && <MonthlyView goodsForecasts={goodsForecasts} />}
-              {reportsSubTab === 'integrations' && <IntegrationsView integrations={integrations} />}
-              {reportsSubTab === 'approval' && (
                 <ApprovalView
                   plans={plans}
                   approverName={approverName}
@@ -749,55 +814,12 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
                   onApproveTask={handleApproveTask}
                   approvingTaskId={approvingTaskId}
                 />
-              )}
-            </div>
-          )}
-
-          {/* VIEW: POSSESSION SIGN-OFF & OFFICIAL SANCTION MEMOS */}
-          {activeTab === 'approval' && (
-            <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-                    Control Office Sanction Workspace
-                  </h1>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-                    Official Indian Railways Form IR-CO-04 Sanction Notices, PTW Clearances & Chief Controller Sign-Off.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('planning')}
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    color: '#0f172a',
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  ← Back to Planning
-                </button>
               </div>
+            } />
 
-              <ApprovalView
-                plans={plans}
-                approverName={approverName}
-                setApproverName={setApproverName}
-                approverRole={approverRole}
-                setApproverRole={setApproverRole}
-                approvalRemarks={approvalRemarks}
-                setApprovalRemarks={setApprovalRemarks}
-                onApproveTask={handleApproveTask}
-                approvingTaskId={approvingTaskId}
-              />
-            </div>
-          )}
-
-          {/* VIEW: SETTINGS */}
-          {activeTab === 'settings' && <SettingsView modelHealth={modelHealth} />}
+            {/* SETTINGS */}
+            <Route path="/settings" element={<SettingsView modelHealth={modelHealth} />} />
+          </Routes>
         </main>
       </div>
     </div>
@@ -815,7 +837,7 @@ export default function App() {
       <Routes>
         <Route
           path="/login"
-          element={token ? <Navigate to="/" /> : <Login setToken={setToken} />}
+          element={token ? <Navigate to="/dashboard" /> : <Login setToken={setToken} />}
         />
         <Route
           path="/*"
