@@ -50,7 +50,7 @@ export function OverviewView({
       {/* ================================================================== */}
       {/* 1. HERO BANNER                                                     */}
       {/* ================================================================== */}
-      <div style={{
+      <div className="hero-banner-flex" style={{
         position: 'relative',
         borderRadius: 16,
         overflow: 'hidden',
@@ -123,7 +123,7 @@ export function OverviewView({
         </div>
 
         {/* Right Frosted Glass Box */}
-        <div style={{
+        <div className="hero-banner-glass" style={{
           position: 'relative',
           zIndex: 3,
           backdropFilter: 'blur(10px)',
@@ -327,11 +327,7 @@ export function OverviewView({
       {/* ================================================================== */}
       {/* 3. MIDDLE ROW (DONUT CHART + UPCOMING MAINTENANCE BLOCKS)          */}
       {/* ================================================================== */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(320px, 42%) minmax(380px, 58%)',
-        gap: 20
-      }}>
+      <div className="dashboard-grid">
         {/* Left Card: Department-wise Maintenance Tasks */}
         <div style={{
           background: '#ffffff',

@@ -1,11 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-body {
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
   margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #f8fafc;
   color: #0f172a;
@@ -95,6 +102,9 @@ tbody tr:hover {
 .leaflet-container {
   font-family: 'Inter', system-ui, sans-serif;
   background-color: #f8fafc !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
 }
 
 .leaflet-popup-content-wrapper {
@@ -107,4 +117,30 @@ tbody tr:hover {
 
 .leaflet-popup-tip {
   background: #ffffff !important;
+}
+
+/* Industrial Responsive Breakout Protections */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 42%) minmax(380px, 58%);
+  gap: 20px;
+}
+
+@media (max-width: 1120px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero-banner-flex {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 20px !important;
+  }
+  .hero-banner-glass {
+    align-self: flex-start !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 }

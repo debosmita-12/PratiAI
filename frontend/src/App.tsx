@@ -440,13 +440,21 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
       {/* ================================================================== */}
       {/* 2. MAIN CONTENT AREA (Header + View Container)                     */}
       {/* ================================================================== */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        maxWidth: 'calc(100vw - 240px)',
+        boxSizing: 'border-box',
+        overflowX: 'hidden'
+      }}>
         {/* Top Navbar Matching Reference (Right-aligned user & bell) */}
         <header style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          padding: '16px 36px 12px 36px',
+          padding: '16px 32px 12px 32px',
           gap: 22,
           background: '#f8fafc'
         }}>
@@ -510,7 +518,14 @@ function ControlRoom({ token, onLogout }: { token: string; onLogout: () => void 
         </header>
 
         {/* Dynamic Workspace Container */}
-        <main style={{ padding: '4px 36px 36px 36px', flex: 1, overflowY: 'auto' }}>
+        <main style={{
+          padding: '4px 32px 32px 32px',
+          flex: 1,
+          overflowY: 'auto',
+          minWidth: 0,
+          maxWidth: '100%',
+          boxSizing: 'border-box'
+        }}>
           {errorBanner && (
             <div style={{
               padding: '12px 16px',
